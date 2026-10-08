@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: substack-toolbox
+  namespace: substack
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: substack-toolbox }
+  template:
+    metadata:
+      labels: { app: substack-toolbox }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000 }
+      containers:
+        - name: toolbox
+          image: substack-cli:0.1.0
+          imagePullPolicy: IfNotPresent
+          command: ["sleep", "infinity"]
+          envFrom:
+            - secretRef: { name: substack-secrets }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: config, mountPath: /config, readOnly: true }
+            - { name: data, mountPath: /data }
+      volumes:
+        - name: config
+          configMap: { name: substack-config }
+        - name: data
+          persistentVolumeClaim: { claimName: substack-data }
+# Uso:  kubectl -n substack exec -it deploy/substack-toolbox -- node /app/dist/cli/main.js article list
+# Nota: la PVC è ReadWriteOnce (local-path): CronJob e toolbox funzionano perché k3s a nodo singolo li schedula sullo stesso nodo.

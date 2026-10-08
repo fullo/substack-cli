@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: substack-config
+  namespace: substack
+data:
+  config.json: |
+    {
+      "publication": "SOSTITUISCI-SUBDOMAIN",
+      "generate": {
+        "provider": "openai-compat",
+        "model": "locale",
+        "baseUrl": "http://llama-cpp.llm.svc.cluster.local:8080"
+      }
+    }
