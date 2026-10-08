@@ -51,11 +51,14 @@ Data di compilazione: ____-__-__
 
 ## 6. Schedule / cancel schedule (solo ispezione del browser, non eseguire)
 
-- [ ] Data verifica: ____-__-__ — NON CONFERMATO
-- [ ] Schedule: metodo — NON CONFERMATO
-- [ ] Schedule: percorso — NON CONFERMATO
-- [ ] Schedule: corpo della richiesta (anonimizzato, formato data/ora) — NON CONFERMATO
-- [ ] Schedule: forma della risposta — NON CONFERMATO
+- [x] Data verifica: 2026-10-09 — schedulazione CONFERMATA su Substack reale con una bozza di prova (poi cancellata dall'utente); cancel e publish NON CONFERMATI
+- [x] Schedule: metodo POST — CONFERMATO
+- [x] Schedule: percorso `https://<subdomain>.substack.com/api/v1/drafts/<id>/scheduled_release` — CONFERMATO
+- [x] Schedule: corpo della richiesta `{ "trigger_at": "<ISO 8601 UTC, es. 2026-10-10T19:00:00.000Z>", "post_audience": "everyone", "email_audience": "founding" }` — CONFERMATO (stato 200)
+- [x] Schedule: **valori ammessi per `email_audience`**: `everyone`, `founding`, `only_paid`, `only_free` (verificati con una sonda che non può programmare nulla: data volutamente non valida). `null` e assente passano la validazione. **Rifiutati con 400 «Invalid value»**: `no_one`, `none`, `nobody`, `off`, `disabled`, `paid` — quindi **non esiste un valore «nessuna email»**, e il valore `no_one` usato finora dal client è sbagliato (il comando `article schedule` fallisce con 400, senza programmare nulla)
+- [ ] Schedule: cosa significhi `email_audience: null`/assente (nessuna email? oppure «usa `should_send_email` della bozza», che per default è `true`?) — NON CONFERMATO: non va usato senza verifica, perché potrebbe inviare l'email a tutti gli iscritti
+- [x] Schedule: forma della risposta: 200 con l'**intera bozza**; `postSchedules` contiene `[{ "id", "trigger_at", "post_audience", "email_audience" }]` e `is_published` resta `false`, `post_date` resta `null` — CONFERMATO
+- [x] Nota: la bozza creata ha `should_send_email: true` di default
 - [ ] Cancel: metodo — NON CONFERMATO
 - [ ] Cancel: percorso — NON CONFERMATO
 - [ ] Cancel: corpo della richiesta (anonimizzato) — NON CONFERMATO
