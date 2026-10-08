@@ -6,22 +6,22 @@ Data di compilazione: ____-__-__
 
 ## 1. Profilo (GET, sonda)
 
-- [ ] Data verifica: ____-__-__ — NON CONFERMATO
-- [ ] Metodo — NON CONFERMATO
-- [ ] Percorso (atteso: `/api/v1/user/profile/self`) — NON CONFERMATO
-- [ ] Corpo della richiesta (anonimizzato): n/a per GET — NON CONFERMATO
-- [ ] Forma della risposta — NON CONFERMATO
-- [ ] Note / codici di stato — NON CONFERMATO
+- [x] Data verifica: 2026-10-08 — CONFERMATO (sonda di sola lettura, stato 200)
+- [x] Metodo: GET — CONFERMATO
+- [x] Percorso: `https://substack.com/api/v1/user/profile/self` — CONFERMATO
+- [x] Corpo della richiesta: n/a per GET
+- [x] Forma della risposta: oggetto con `id` (number), `name` e `handle` (string), `publicationUsers[]` (ognuno con `publication.subdomain`, `role`, `is_primary`), `primaryPublication.subdomain`, più molti altri campi (ignorati: schema passthrough) — CONFERMATO
+- [x] Note: `id` è numerico come atteso da ProfileSchema; `publicationUsers` permette di mostrare a quale pubblicazione dà accesso il cookie
 
 ## 2. Elenco bozze (GET, sonda)
 
-- [ ] Data verifica: ____-__-__ — NON CONFERMATO
-- [ ] Metodo — NON CONFERMATO
-- [ ] Percorso (atteso: `/api/v1/post_management/drafts`) — NON CONFERMATO
-- [ ] Parametri query (offset, limit, order_by, order_direction) — NON CONFERMATO
-- [ ] Corpo della richiesta (anonimizzato): n/a per GET — NON CONFERMATO
-- [ ] Forma della risposta — NON CONFERMATO
-- [ ] Note / codici di stato — NON CONFERMATO
+- [x] Data verifica: 2026-10-08 — CONFERMATO (sonda di sola lettura, stato 200)
+- [x] Metodo: GET — CONFERMATO
+- [x] Percorso: `https://<subdomain>.substack.com/api/v1/post_management/drafts` — CONFERMATO
+- [x] Parametri query usati: offset, limit, order_by=draft_updated_at, order_direction=desc — CONFERMATO (accettati)
+- [x] Corpo della richiesta: n/a per GET
+- [x] Forma della risposta: `{ posts: [...], offset, limit, total, isCapped }`; ogni post ha `id` (number), `uuid`, `draft_title` (string), `title` (string|null), `audience`, `is_published`, `post_date` (string|null), `draft_updated_at`, `draft_created_at`, `draftBylines[]`, `stats`… — CONFERMATO
+- [x] Note: il campo titolo delle bozze è `draft_title`, come in DraftSchema
 
 ## 3. Creazione bozza
 
