@@ -17,7 +17,8 @@ Il percorso di default **non genera nulla**: il testo arriva da file o stdin (ad
 
 | Vincolo | Decisione |
 |---|---|
-| Dipendenze | **Zero dipendenze di runtime.** Solo `node:*` e `fetch` nativo. Parsing argomenti con `node:util` `parseArgs`, validazione con funzioni scritte a mano, parser Markdown scritto a mano per il sottoinsieme supportato. |
+| Dipendenze di runtime | **Minime, solo standard di mercato solidi, niente micro-dipendenze.** Tre pacchetti, tutti senza dipendenze transitive: `marked` (lexer Markdown), `yaml` (front-matter), `zod` (validazione delle risposte API e della config). Versioni esatte nel `package-lock.json`. Tutto il resto è nativo: `fetch`, `node:util` `parseArgs`, `node:test`, `node:fs`, `node:crypto`. Retry/backoff, scritture atomiche, lock file, redazione dei segreti e prompt nascosto si scrivono a mano (poche righe ciascuno). Nessun SDK dei provider LLM: una chiamata `fetch` per provider. |
+| Regola per nuove dipendenze | Si aggiunge una libreria solo se sostituisce codice complesso o rischioso (parsing, crittografia, date con fusi), è uno standard diffuso, manutenuta e senza dipendenze transitive. Mai per risparmiare poche righe. |
 | Dipendenze di sviluppo | Solo `typescript`, `@types/node` e `@stryker-mutator/core` (con il runner a comando). Nessun framework di test: si usa `node:test`. |
 | Linguaggio | TypeScript "vanilla": `tsc` compila in `dist/` (ESM, `strict`, `noUncheckedIndexedAccess`). Nessun bundler, nessun transpiler esterno. |
 | Runtime | Node.js 22 LTS o superiore. |
@@ -30,10 +31,10 @@ Il percorso di default **non genera nulla**: il testo arriva da file o stdin (ad
 ```
 src/
   cli/          entrypoint, routing dei comandi (sottile), formattazione output, exit code
-  config/       caricamento config.json + variabili d'ambiente, validazione manuale
+  config/       caricamento config.json + variabili d'ambiente, validazione con zod
   auth/         store del cookie (file 0600 / env), auth check, guida, login Playwright opzionale
-  substack/     SubstackClient (HTTP, retry, errori tipizzati) + validatori di risposta
-  markdown/     parser Markdown → AST → documento ProseMirror; front-matter
+  substack/     SubstackClient (HTTP, retry, errori tipizzati) + schemi zod delle risposte
+  markdown/     token di `marked` → documento ProseMirror; front-matter (`yaml`)
   notes/        coda locale su file, macchina a stati, run-due
   generate/     interfaccia Provider, anthropic.ts, openai-compat.ts
   util/         fs atomico, lock file, redazione segreti, tempo
@@ -87,7 +88,7 @@ Opzioni comuni: `--dry-run` (su tutto ciò che scrive), `--json` (output leggibi
 - Di default **non invia l'email** agli iscritti; serve `--send-email`.
 - `article schedule` usa la schedulazione **nativa di Substack** (lato server); `--cancel` la annulla.
 - `generate` non pubblica né schedula mai. Con `--draft` crea solo una bozza.
-- Le date di schedulazione devono essere nel futuro; il fuso orario è esplicito (ISO 8601 con offset, oppure config `timezone`).
+- Le date di schedulazione devono essere nel futuro e in ISO 8601 con offset esplicito o `Z` (es. `2026-10-09T09:00:00+02:00`); senza offset il comando fallisce. L'orario locale con fuso IANA configurato è rimandato oltre la v1.
 
 ## 5. Flusso dei dati
 
@@ -118,7 +119,7 @@ draft ──schedule──▶ scheduled ──(run-due | publish)──▶ publi
 `SubstackClient` espone: `getProfile()`, `createDraft()`, `listDrafts()`, `publishDraft()`, `scheduleDraft()`, `cancelSchedule()`, `postNote()`.
 
 - **Endpoint da verificare** (Fase 0, vedi §11): candidati noti `POST /api/v1/drafts`, `PUT /api/v1/drafts/{id}`, `GET /api/v1/post_management/drafts`, `POST /api/v1/drafts/{id}/publish`, `POST /api/v1/drafts/{id}/scheduled_release`, `POST /api/v1/comment/feed` (note). Nulla viene dato per certo finché non è confermato con richieste di sola lettura e fixture.
-- Ogni risposta è validata da un validatore scritto a mano; se non corrisponde, `ApiShapeError` indica endpoint e campo.
+- Ogni risposta è validata da uno schema zod; se non corrisponde, `ApiShapeError` indica endpoint e campo (dai path degli issue di zod).
 - Retry con backoff esponenziale (max 3) **solo** su operazioni idempotenti (GET, annullamento). Le creazioni e le pubblicazioni non si ritentano alla cieca.
 - Timeout su ogni richiesta (`AbortSignal.timeout`), User-Agent esplicito, rispetto di `Retry-After`.
 
@@ -135,9 +136,9 @@ draft ──schedule──▶ scheduled ──(run-due | publish)──▶ publi
 
 ## 8. Convertitore Markdown
 
-Sottoinsieme supportato: titoli (h1–h4), paragrafi, **grassetto**, *corsivo*, `codice`, blocchi di codice, link, liste puntate e numerate (anche annidate), citazioni, separatori `---`, immagini da URL remoto. Il front-matter è un parser YAML minimale (solo `chiave: valore` e liste semplici).
+Sottoinsieme supportato: titoli (h1–h4), paragrafi, **grassetto**, *corsivo*, `codice`, blocchi di codice, link, liste puntate e numerate (anche annidate), citazioni, separatori `---`, immagini da URL remoto. Il front-matter è YAML letto con `yaml` e validato con uno schema zod (`title` obbligatorio, `subtitle`, `tags`, `section` opzionali).
 
-- Il parser costruisce un AST intermedio, poi un generatore produce il JSON ProseMirror atteso da Substack.
+- Il parsing Markdown è delegato a `marked.lexer()` (token annidati); il codice nostro è un **mapper token → nodi ProseMirror** che costituisce il vero oggetto di test e di mutazione. I token non supportati (HTML grezzo, tabelle, ecc.) producono errore esplicito.
 - Sicurezza: i link ammettono solo schemi `http`, `https`, `mailto`; gli altri (es. `javascript:`) vengono rifiutati. Le immagini ammettono solo `https`. Nessun HTML grezzo: viene trattato come testo.
 - Input non supportato → errore esplicito con riga e colonna, mai perdita silenziosa di contenuto.
 
@@ -156,7 +157,7 @@ interface Provider {
 ## 10. Deploy
 
 - **Build:** `npm run build` (`tsc`) → `dist/`. Il CLI è `dist/cli/main.js` con shebang, esposto come `substack` nel `bin`.
-- **Dockerfile** multi-stage: stage di build con `tsc`; immagine finale `node:22-alpine` con solo `dist/` (nessun `node_modules` di runtime), utente non root, `ENTRYPOINT ["substack"]`.
+- **Dockerfile** multi-stage: stage di build con `tsc`; immagine finale `node:22-alpine` con `dist/` e solo le 3 dipendenze di runtime (`npm ci --omit=dev --ignore-scripts`), utente non root, `ENTRYPOINT ["substack"]`.
 - **k3s** (`deploy/k3s/`): `Secret` (`SUBSTACK_SID`, opzionale `ANTHROPIC_API_KEY`), `ConfigMap` (config.json), `PVC` local-path per i dati, `CronJob` ogni minuto con `concurrencyPolicy: Forbid` per `notes run-due`, `Job` di esempio per `auth check`, pod "toolbox" opzionale per `kubectl exec`. Rinnovo del cookie: `kubectl create secret ... --dry-run=client -o yaml | kubectl apply -f -`.
 - **systemd:** `substack-notes.service` + `.timer` (ogni minuto); in alternativa una riga cron.
 
@@ -164,7 +165,7 @@ interface Provider {
 
 **Fase 0 — Scoperta API (prima di scrivere il client):** con il cookie dell'utente, solo richieste di **lettura** per confermare forma di profilo e bozze; le forme di scrittura (creazione bozza, nota, pubblicazione) si confermano su una bozza/nota di prova che l'utente approva. Le risposte, anonimizzate, diventano fixture.
 
-**Unitari** (`node:test`): parser Markdown e front-matter, generatore ProseMirror, validatori di risposta, macchina a stati e coda note (scritture atomiche, lock), redazione segreti, parsing date/fusi, config. Un test per ogni regola di sicurezza (schemi di link, `--yes`, `--send-email`).
+**Unitari** (`node:test`): mapper Markdown → ProseMirror e front-matter, schemi di risposta, macchina a stati e coda note (scritture atomiche, lock), redazione segreti, parsing date/fusi, config. Un test per ogni regola di sicurezza (schemi di link, `--yes`, `--send-email`).
 
 **Funzionali:** il CLI compilato viene eseguito come processo figlio contro:
 - un **server Substack finto** (`node:http`) che riproduce le fixture, incluse risposte di errore (401, 429, forma errata, timeout);
@@ -188,12 +189,13 @@ Revisione avversaria dedicata, con un elenco di attacchi da tentare davvero e di
 - **Salvaguardie:** aggirare `--yes` o `--send-email`, pubblicare da una pipeline non interattiva senza volerlo.
 - **Fuzzing** del parser Markdown e del front-matter (proprietà: nessun crash, nessun output con schemi vietati, nessuna perdita silenziosa).
 - **Container/k3s:** utente non root, filesystem root in sola lettura dove possibile, nessun segreto nell'immagine.
+- **Supply chain:** versioni esatte e lockfile, `npm ci --ignore-scripts`, `npm audit`, verifica che le 3 dipendenze non abbiano dipendenze transitive e che non ne vengano aggiunte senza motivo (controllo in CI sull'albero di `package-lock.json`).
 
 Esito: un report con i problemi trovati, correzioni e test di regressione, prima di considerare la v1 completa.
 
 ## 13. Fuori dalla v1
 
-Upload di immagini locali, note con immagini/allegati, più pubblicazioni o profili, statistiche e iscritti, interfaccia web, daemon residente.
+Orario locale con fuso IANA (`--at "2026-10-09 09:00"`), upload di immagini locali, note con immagini/allegati, più pubblicazioni o profili, statistiche e iscritti, interfaccia web, daemon residente.
 
 ## 14. Rischi
 
