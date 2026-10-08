@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Substack CLI</title>
+  <meta name="description" content="Crea bozze da Markdown, programma note e pubblica da terminale. Niente va online senza un tuo sì esplicito. Strumento non ufficiale, in beta.">
+  <meta name="color-scheme" content="light dark">
+  <meta property="og:title" content="Substack CLI">
+  <meta property="og:description" content="Bozze, note e pubblicazioni dal terminale, senza pubblicare per sbaglio.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231d1a16'/%3E%3Cpath d='M8 9h16M8 15h16M8 21h10' stroke='%23ff7058' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<a class="skip" href="#contenuto">Vai al contenuto</a>
+<div class="wrap">
+
+  <div class="masthead">
+    <b>Substack&nbsp;CLI</b>
+    <nav aria-label="Principale">
+      <a href="#cosa-fa">Cosa fa</a>
+      <a href="#regole">Regole</a>
+      <a href="#stato">Stato</a>
+      <a href="#avvio">Avvio rapido</a>
+      <a href="#documenti">Documenti</a>
+    </nav>
+  </div>
+
+  <main id="contenuto">
+
+    <div class="hero">
+      <div>
+        <p class="kicker">Riga di comando · beta · non ufficiale</p>
+        <h1>La newsletter dal terminale, <em>senza pubblicare per sbaglio.</em></h1>
+        <p class="lead">Crea bozze da Markdown, metti in coda le note e programmale, e se vuoi fatti scrivere una prima stesura da un LLM, anche locale. Pubblicare è sempre un tuo sì esplicito.</p>
+        <div class="cta">
+          <a class="btn" href="#avvio">Avvio rapido</a>
+          <a class="btn ghost" href="https://github.com/fullo/substack-cli">Codice su GitHub</a>
+        </div>
+      </div>
+
+      <figure class="galley" style="margin:0">
+        <header><span>Bozza n. 1</span><span>stdout</span></header>
+        <pre tabindex="0"><code><span class="p">$</span> substack article draft post.md
+<span class="ok">Bozza creata: id 123456789</span>
+
+<span class="p">$</span> substack article publish 123456789
+<span class="c">Errore: Pubblicazione non interattiva: aggiungi
+--yes per confermare esplicitamente</span>
+
+<span class="p">$</span> substack note add "Una nota breve"
+<span class="p">$</span> substack note schedule a1b2c3d4e5f6 \
+    --at 2026-10-09T09:00:00+02:00
+
+<span class="p">$</span> substack notes run-due   <span class="c"># cron / k3s</span></code></pre>
+        <p class="note">Senza <code>--yes</code> il comando si ferma prima di toccare la rete.</p>
+      </figure>
+    </div>
+
+    <section id="cosa-fa" aria-labelledby="h-cosa" class="folio">
+      <div class="tag">§ 1</div>
+      <div>
+        <h2 id="h-cosa">Cosa fa</h2>
+        <div class="cards">
+          <article class="card">
+            <h3 data-n="01">Bozze da Markdown</h3>
+            <p>Titoli, grassetto, corsivo, liste annidate, citazioni, codice e link diventano il corpo di una bozza online. Quello che non supporta (HTML grezzo, tabelle) lo rifiuta con un errore, senza perdere testo in silenzio.</p>
+          </article>
+          <article class="card">
+            <h3 data-n="02">Coda di note</h3>
+            <p>Le note vivono in locale come bozze. Le pubblichi a mano o le programmi con un orario: <code>notes run-due</code> pensa al resto. Una nota dall'esito incerto non viene mai ripubblicata.</p>
+          </article>
+          <article class="card">
+            <h3 data-n="03">Generazione opzionale</h3>
+            <p>Anthropic oppure qualunque server compatibile OpenAI (llama.cpp, Ollama, vLLM, LM Studio). Il testo generato diventa solo una bozza o una nota in coda: non pubblica mai nulla.</p>
+          </article>
+          <article class="card">
+            <h3 data-n="04">Su una macchina dedicata</h3>
+            <p>Un'immagine Docker, i manifest per k3s (CronJob, PVC, Secret) e un timer systemd. Tre sole dipendenze di runtime: <code>marked</code>, <code>yaml</code>, <code>zod</code>.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="regole" aria-labelledby="h-regole" class="folio">
+      <div class="tag">§ 2</div>
+      <div>
+        <h2 id="h-regole">Regole di redazione</h2>
+        <p>Il progetto è nato con una domanda: come impedire che uno script pubblichi, o mandi un'email a tutti gli iscritti, quando non doveva? Le risposte:</p>
+        <ul class="rules">
+          <li><strong>Pubblicare e programmare richiedono <code>--yes</code></strong> quando non c'è un terminale, oppure una parola digitata a mano. Senza terminale il controllo avviene prima di qualsiasi richiesta di rete.</li>
+          <li><strong>L'email agli iscritti parte solo con <code>--send-email</code></strong>. Di default non si invia nulla.</li>
+          <li><strong>Il cookie di sessione non finisce mai</strong> in output, log, file di dati o messaggi d'errore, e viene inviato solo a host <code>substack.com</code>. La chiave Anthropic va solo ad <code>api.anthropic.com</code>.</li>
+          <li><strong>Link e immagini solo con schemi sicuri</strong> (<code>http</code>, <code>https</code>, <code>mailto</code>); niente HTML grezzo; caratteri invisibili e di controllo rifiutati.</li>
+          <li><strong>Nessuna doppia pubblicazione</strong>: la coda delle note è protetta da un lock, e una nota di cui non si sa se sia uscita resta ferma finché non decidi tu.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="numeri" aria-labelledby="h-numeri" class="folio">
+      <div class="tag">§ 3</div>
+      <div>
+        <h2 id="h-numeri">Controllato, non solo scritto</h2>
+        <div class="figures" role="list">
+          <div role="listitem"><strong>379</strong><span>test: unitari, funzionali (CLI vero contro server finti) e di sicurezza. 377 passano, 2 sono saltati su Windows.</span></div>
+          <div role="listitem"><strong>96%</strong><span>mutation score su 1523 mutanti (analisi completa); 95% sui file toccati dalle correzioni.</span></div>
+          <div role="listitem"><strong>16</strong><span>segnalazioni da un red team indipendente e dai test di sicurezza (alcune sulla stessa causa), tutte corrette o mitigate.</span></div>
+          <div role="listitem"><strong>3</strong><span>dipendenze di runtime, senza dipendenze transitive. <code>npm audit</code>: 0 vulnerabilità.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="stato" aria-labelledby="h-stato" class="folio">
+      <div class="tag">§ 4</div>
+      <div>
+        <h2 id="h-stato">Stato: cosa è provato davvero</h2>
+        <p>Substack non ha un'API pubblica: il CLI usa quelle interne, non documentate, che possono cambiare senza preavviso. Per questo ogni voce dice con onestà quanto è verificata.</p>
+        <div class="status">
+          <div class="row"><span class="stamp ok">Confermato</span><div><h3>Su Substack reale</h3><p>Lettura del profilo, elenco e lettura delle bozze, creazione di una bozza e nomi dei nodi del corpo (titoli, liste, citazioni, codice, link).</p></div></div>
+          <div class="row"><span class="stamp warn">Da confermare</span><div><h3>Pubblicazione, programmazione, note</h3><p>Pubblicare, programmare e annullare un articolo e creare una nota funzionano contro un server finto. Le richieste reali non sono ancora state verificate, e nemmeno le immagini: finché non lo sono, considerali in beta.</p></div></div>
+          <div class="row"><span class="stamp ok">Collaudato</span><div><h3>Docker e k3s</h3><p>Immagine costruita, CronJob eseguito ogni minuto, pod non-root con filesystem in sola lettura, dati persistenti, errori di cookie visibili come Job falliti. Su un k3s a nodo singolo in WSL2.</p></div></div>
+          <div class="row"><span class="stamp no">Non provato</span><div><h3>VM dedicata, più nodi</h3><p>Il servizio vero andrebbe su una macchina sempre accesa: i manifest sono gli stessi, ma non sono stati ancora provati lì.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="avvio" aria-labelledby="h-avvio" class="folio">
+      <div class="tag">§ 5</div>
+      <div>
+        <h2 id="h-avvio">Avvio rapido</h2>
+        <ol class="steps">
+          <li><h3>Installa e compila</h3>
+<pre tabindex="0"><code>git clone https://github.com/fullo/substack-cli.git
+cd substack-cli
+npm ci
+npm run build</code></pre>
+            <p>Serve Node 22.18 o successivo.</p></li>
+          <li><h3>Configura la pubblicazione</h3>
+<pre tabindex="0"><code>node dist/cli/main.js config init --publication la-tua-newsletter</code></pre>
+            <p>È la parte prima di <code>.substack.com</code>.</p></li>
+          <li><h3>Dai al CLI il cookie di sessione</h3>
+<pre tabindex="0"><code>node dist/cli/main.js auth guide    # istruzioni passo passo
+node dist/cli/main.js auth set      # il valore non viene mostrato
+node dist/cli/main.js auth check</code></pre>
+            <p>Il cookie è come una password: chi lo ha agisce come te. Non incollarlo in chat o in file versionati.</p></li>
+          <li><h3>Crea una bozza</h3>
+<pre tabindex="0"><code>node dist/cli/main.js article draft post.md --dry-run   # prova senza inviare
+node dist/cli/main.js article draft post.md</code></pre>
+            <p>Il file inizia con un front-matter <code>title:</code> (e, se vuoi, <code>subtitle:</code>).</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="documenti" aria-labelledby="h-doc" class="folio">
+      <div class="tag">§ 6</div>
+      <div>
+        <h2 id="h-doc">Documenti</h2>
+        <ul class="docs">
+          <li><a href="https://github.com/fullo/substack-cli/blob/main/README.md">README</a><small>Installazione, comandi, deploy, risoluzione problemi.</small></li>
+          <li><a href="https://github.com/fullo/substack-cli/blob/main/docs/superpowers/specs/2026-10-08-substack-cli-design.md">Specifica di progetto</a><small>Architettura, regole di sicurezza, strategia di test.</small></li>
+          <li><a href="https://github.com/fullo/substack-cli/blob/main/docs/superpowers/reports/2026-10-08-red-team.md">Report del red team</a><small>Problemi trovati, attacchi provati, collaudo su k3s, limiti.</small></li>
+          <li><a href="https://github.com/fullo/substack-cli/blob/main/docs/mutation-equivalents.md">Mutanti equivalenti</a><small>I casi in cui il mutation testing non può dire di più, e perché.</small></li>
+          <li><a href="https://github.com/fullo/substack-cli/blob/main/tests/fixtures/README.md">Contratto delle API</a><small>Cosa è stato confermato su Substack reale e cosa no.</small></li>
+          <li><a href="https://github.com/fullo/substack-cli/tree/main/deploy">Deploy</a><small>Dockerfile, manifest k3s, unità systemd.</small></li>
+        </ul>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>Strumento indipendente e non ufficiale: non è affiliato né approvato da Substack. Usa API interne non documentate e può smettere di funzionare in qualsiasi momento; l'uso è a tuo rischio. Verifica sempre le condizioni d'uso del servizio.</p>
+  </footer>
+</div>
+</body>
+</html>
