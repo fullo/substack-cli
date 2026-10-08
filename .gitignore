@@ -3,3 +3,4 @@ dist
 .stryker-tmp
 reports
 *.tmp
+.claude/
