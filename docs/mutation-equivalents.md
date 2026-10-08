@@ -72,14 +72,37 @@ coperti da test e i relativi mutanti sono uccisi.
 | 261 | ConditionalExpression ×2, CallExpression (addebito di `inlineText`) (3) | contabilità interna (lineare); `inlineText` è l'ultimo tokenizer e non restituisce mai `undefined` |
 | 272 | StringLiteral (`Buffer.byteLength(markdown, 'utf8')` → `''`) | libreria: Buffer usa UTF-8 di default |
 
-## src/notes/publish.ts (6)
+## src/notes/publish.ts (8)
+
+Aggiornato dopo le correzioni del red team (analisi mirata del 2026-10-08, vedi sotto): la logica
+di `runDue` è cambiata (rilettura sotto lock, heartbeat, errori per nota) e le righe sono quelle attuali.
 
 | riga | mutatore | motivo |
 |---|---|---|
 | 13 | ConditionalExpression (`httpStatus !== undefined` → true) | ridondante: `undefined >= 400` è false |
-| 56 | ArrayDeclaration (`stuck`, `corrupt` iniziali) (2) | irraggiungibile: entrambi vengono sovrascritti subito dopo |
-| 62 | ConditionalExpression (`publishAt !== undefined` → true) | ridondante: `new Date(undefined)` è NaN e il confronto `<= now` è false |
-| 63 | StringLiteral (`publishAt ?? ''`) (2) | irraggiungibile: le note scadute hanno sempre `publishAt` |
+| 74 | ConditionalExpression (`publishAt !== undefined` → true) | ridondante: `new Date(undefined)` è NaN e il confronto `<= now` è false |
+| 82 | ArrayDeclaration (`stuck`, `corrupt` iniziali) (2) | irraggiungibile: entrambi vengono sovrascritti subito dopo |
+| 87 | MethodExpression (`.filter((n) => isDue(n, now))` rimosso) | ridondante: il ciclo rilegge ogni nota sotto lock e salta quelle non scadute con lo stesso `isDue`; cambia solo quante letture/heartbeat si fanno su note non scadute, non l'esito |
+| 89 | StringLiteral (`publishAt ?? ''`) (2) | irraggiungibile: le note scadute hanno sempre `publishAt` |
+| 95 | StringLiteral (separatore `', '` → `''` nel messaggio «Già pubblicate: …») | **cosmetico, non coperto**: cambia solo la formattazione del messaggio d'errore dell'heartbeat fallito con più note già pubblicate; non è stato aggiunto un test per un dettaglio di formattazione |
+
+## src/util/http.ts (3)
+
+| riga | mutatore | motivo |
+|---|---|---|
+| 17 | StringLiteral (`content-length ?? '0'` → `''`) | equivalente: `Number('')` è 0, come `Number('0')` |
+| 24 | StringLiteral (`Buffer.byteLength(text, 'utf8')` → `''`) | libreria: una codifica non valida ricade su UTF-8 |
+| 41 | StringLiteral (`reason: 'interrupted'` → `''`) | non osservabile: i chiamanti confrontano `reason` solo con `'too-large'`; ogni altro caso di `!ok` è trattato come lettura interrotta |
+
+## Analisi mirata dopo le correzioni del red team
+
+2026-10-08, solo `src/util/http.ts`, `src/util/issues.ts`, `src/notes/publish.ts` (i file con logica nuova):
+232 mutanti, punteggio **95,26%** (200 uccisi, 21 timeout, 11 sopravvissuti, 0 senza copertura):
+`publish.ts` 94,48%, `http.ts` 94,00%, `issues.ts` 100%. I 11 sopravvissuti sono tutti elencati nelle
+due sezioni qui sopra (10 equivalenti o non osservabili, 1 cosmetico non coperto).
+Non è stata rieseguita la suite completa dopo le correzioni (richiede più di un'ora): per gli
+altri file toccati (`fs.ts`, `store.ts`, `text.ts`, `config.ts`, `frontmatter.ts`, `clock.ts`,
+provider LLM) vale il punteggio della prima analisi completa, senza una riesecuzione a riprova.
 
 ## src/notes/store.ts (3)
 
