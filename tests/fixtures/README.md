@@ -25,21 +25,21 @@ Data di compilazione: ____-__-__
 
 ## 3. Creazione bozza
 
-- [ ] Data verifica: ____-__-__ — NON CONFERMATO
-- [ ] Metodo — NON CONFERMATO
-- [ ] Percorso — NON CONFERMATO
-- [ ] Corpo della richiesta (anonimizzato) — NON CONFERMATO
-- [ ] Forma della risposta — NON CONFERMATO
-- [ ] Nomi dei nodi del corpo (vedi sezione 8) — NON CONFERMATO
+- [x] Data verifica: 2026-10-08 — CONFERMATO (una bozza "TEST-CLI" creata dal CLI sulla pubblicazione dell'utente, mai pubblicata né inviata)
+- [x] Metodo: POST — CONFERMATO
+- [x] Percorso: `https://<subdomain>.substack.com/api/v1/drafts` — CONFERMATO
+- [x] Corpo della richiesta (campi inviati dal client): `draft_title`, `draft_subtitle`, `draft_body` (stringa JSON del documento ProseMirror), `type: "newsletter"`, `audience: "everyone"`, `draft_bylines: [{ id, is_guest: false }]` — ACCETTATO dal server (nessun errore)
+- [x] Forma della risposta: contiene `id` (number); il client costruisce l'URL di modifica `/publish/post/<id>` — CONFERMATO (id restituito; URL di modifica non aperto dal CLI)
+- [x] Nomi dei nodi del corpo (vedi sezione 8) — CONFERMATO
 
 ## 4. Lettura bozza (GET)
 
-- [ ] Data verifica: ____-__-__ — NON CONFERMATO
-- [ ] Metodo — NON CONFERMATO
-- [ ] Percorso — NON CONFERMATO
-- [ ] Corpo della richiesta (anonimizzato) — NON CONFERMATO
-- [ ] Forma della risposta — NON CONFERMATO
-- [ ] Nomi dei nodi del corpo (vedi sezione 8) — NON CONFERMATO
+- [x] Data verifica: 2026-10-08 — CONFERMATO (stato 200)
+- [x] Metodo: GET — CONFERMATO
+- [x] Percorso: `https://<subdomain>.substack.com/api/v1/drafts/<id>` — CONFERMATO
+- [x] Corpo della richiesta: n/a per GET
+- [x] Forma della risposta: oggetto con `id` (number), `draft_title`, `draft_subtitle` (string), `draft_body` (**stringa** JSON, da fare `JSON.parse`), `audience`, `type`, `is_published`, `post_date` (null per bozza), `postBylines[]`, `postSchedules[]`, molti altri campi — CONFERMATO. Il campo `body` (non-draft) è `null` per le bozze.
+- [x] Nomi dei nodi del corpo (vedi sezione 8) — CONFERMATO
 
 ## 5. Pubblicazione (solo ispezione del browser, non eseguire)
 
@@ -71,14 +71,16 @@ Data di compilazione: ____-__-__
 
 ## 8. Nomi dei nodi del corpo JSON
 
-- [ ] Data verifica: ____-__-__ — NON CONFERMATO
-- [ ] Liste puntate: `bullet_list` vs `bulletList` — NON CONFERMATO
-- [ ] Liste numerate: `ordered_list` vs `orderedList` — NON CONFERMATO
-- [ ] Elemento di lista: `list_item` vs `listItem` — NON CONFERMATO
-- [ ] Titoli (`heading`) e attributo `level` — NON CONFERMATO
-- [ ] Paragrafo e nodo testo — NON CONFERMATO
-- [ ] Marks (bold/strong, italic/em, link, code) — NON CONFERMATO
-- [ ] Blocco di codice — NON CONFERMATO
-- [ ] Citazione (`blockquote`) — NON CONFERMATO
-- [ ] Struttura delle immagini (nodo, attributi `src`/`alt`) — NON CONFERMATO
+- [x] Data verifica: 2026-10-08 — i nodi sotto sono stati inviati e poi riletti dal server: tornano **identici**
+- [x] Liste puntate: `bullet_list` — CONFERMATO (annidamento incluso)
+- [x] Liste numerate: `ordered_list` — CONFERMATO (senza attributo `start`)
+- [x] Elemento di lista: `list_item` (contiene `paragraph`) — CONFERMATO
+- [x] Titoli: `heading` con `attrs.level` — CONFERMATO (livello 2 provato)
+- [x] Paragrafo e nodo testo: `paragraph`, `text` — CONFERMATO
+- [x] Marks: `strong`, `em`, `code`, `link` con `attrs.href` — CONFERMATO
+- [x] Blocco di codice: `code_block` con `attrs.language` — CONFERMATO
+- [x] Citazione: `blockquote` (contiene `paragraph`) — CONFERMATO
+- [x] Separatore: `horizontal_rule` — CONFERMATO
+- [ ] `hard_break` — NON CONFERMATO (non incluso nella prova)
+- [ ] Struttura delle immagini (nodo, attributi `src`/`alt`): `captionedImage`/`image2` è ancora un'ipotesi — NON CONFERMATO
 - [ ] Altri nodi osservati — NON CONFERMATO
