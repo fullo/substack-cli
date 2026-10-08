@@ -4,6 +4,8 @@ metadata:
   name: substack-config
   namespace: substack
 data:
+  # generate.baseUrl è usato solo dal provider openai-compat (server LLM nel cluster) e non riceve mai
+  # ANTHROPIC_API_KEY: il provider anthropic chiama sempre e solo https://api.anthropic.com.
   config.json: |
     {
       "publication": "SOSTITUISCI-SUBDOMAIN",

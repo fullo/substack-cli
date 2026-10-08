@@ -13,13 +13,15 @@ import { emit, flag, makeClient, str } from '../shared.ts';
 import type { Command } from '../shared.ts';
 import { storeFor } from './note.ts';
 
-async function buildProvider(ctx: Ctx, config: Config, override: string | undefined): Promise<Provider> {
+export async function buildProvider(ctx: Ctx, config: Config, override: string | undefined): Promise<Provider> {
   const kind = override ?? config.generate.provider;
-  const { model, timeoutMs, baseUrl } = config.generate;
+  const { model, timeoutMs, baseUrl, anthropicBaseUrl } = config.generate;
   if (kind === 'anthropic') {
     const apiKey = await getApiKey(ctx.env, 'anthropic');
     if (!apiKey) throw new ProviderError('ANTHROPIC_API_KEY non configurata (variabile d\'ambiente o secrets.json)');
-    return anthropicProvider({ apiKey, model, timeoutMs, baseUrl, fetchImpl: ctx.fetchImpl });
+    // Mai generate.baseUrl: è il server LLM locale/di rete e non deve ricevere la chiave Anthropic.
+    // anthropicBaseUrl, se presente, è già validato come https://api.anthropic.com.
+    return anthropicProvider({ apiKey, model, timeoutMs, baseUrl: anthropicBaseUrl, fetchImpl: ctx.fetchImpl });
   }
   if (kind === 'openai-compat') {
     if (!baseUrl) throw new UsageError('generate.baseUrl mancante in config.json (es. http://localhost:8080 per llama.cpp)');

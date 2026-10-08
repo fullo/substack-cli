@@ -37,6 +37,16 @@ function isSafeLlmBase(value: string): boolean {
   return !!url && (url.protocol === 'http:' || url.protocol === 'https:') && url.username === '' && url.password === '';
 }
 
+// La chiave Anthropic viene inviata a questo host: solo l'API ufficiale, in https, senza porta,
+// credenziali, percorso o query. Il server LLM di generate.baseUrl non la riceve mai.
+const ANTHROPIC_HOST = 'api.anthropic.com';
+
+function isSafeAnthropicBase(value: string): boolean {
+  const url = parseUrl(value);
+  return !!url && url.protocol === 'https:' && url.hostname.toLowerCase() === ANTHROPIC_HOST && url.port === ''
+    && url.username === '' && url.password === '' && url.pathname === '/' && url.search === '' && url.hash === '';
+}
+
 const ConfigSchema = z
   .object({
     publication: z.string().regex(/^[a-z0-9][a-z0-9-]{0,62}$/, 'subdomain non valido').optional(),
@@ -49,6 +59,10 @@ const ConfigSchema = z
         provider: z.enum(['anthropic', 'openai-compat']).default('anthropic'),
         model: z.string().min(1).default('claude-sonnet-5-5'),
         baseUrl: z.string().refine(isSafeLlmBase, 'generate.baseUrl deve essere un URL http o https senza credenziali').optional(),
+        anthropicBaseUrl: z
+          .string()
+          .refine(isSafeAnthropicBase, 'generate.anthropicBaseUrl ammette solo https://api.anthropic.com')
+          .optional(),
         maxTokens: z.number().int().min(1).max(64000).default(4096),
         timeoutMs: z.number().int().min(1000).max(600000).default(120000),
       })

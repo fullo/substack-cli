@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { makeSandbox } from '../helpers/cli.ts';
 import type { CliResult } from '../helpers/cli.ts';
 import { defaultSubstack, startFakeSubstack, VALID_SID } from '../helpers/fake-substack.ts';
-import { sendJson } from '../helpers/fake-server.ts';
+import { FakeServer, sendJson } from '../helpers/fake-server.ts';
 
 // Tutte le forme in cui il cookie potrebbe uscire: così com'è, decodificato, ricodificato.
 const SID_FORMS = [VALID_SID, decodeURIComponent(VALID_SID), encodeURIComponent(VALID_SID)];
@@ -123,4 +123,24 @@ test('SUBSTACK_DEBUG=1 non stampa il cookie nemmeno negli stack trace', async ()
     assertNoSid(pub, 'publish debug');
     assert.equal(server.requests.length, 0);
   } finally { await sb.cleanup(); await server.stop(); }
+});
+
+test('la chiave Anthropic non viene mai inviata a generate.baseUrl (server LLM locale/di rete)', async () => {
+  const sub = await startFakeSubstack();
+  const llm = await FakeServer.start((_req, res) => sendJson(res, { content: [{ type: 'text', text: 'x' }] }));
+  // Proxy irraggiungibile: la richiesta verso api.anthropic.com fallisce in locale, senza uscire su Internet.
+  const sb = await makeSandbox(sub.url, {
+    ANTHROPIC_API_KEY: 'sk-ant-test-0000000000000000', NODE_USE_ENV_PROXY: '1', HTTPS_PROXY: 'http://127.0.0.1:1', HTTP_PROXY: 'http://127.0.0.1:1', NO_PROXY: '127.0.0.1,localhost',
+  });
+  try {
+    await mkdir(sb.configDir, { recursive: true });
+    await writeFile(join(sb.configDir, 'config.json'), JSON.stringify({
+      generate: { provider: 'openai-compat', model: 'locale', baseUrl: llm.url },
+    }));
+    const r = await sb.run(['generate', 'article', '--topic', 'x', '--provider', 'anthropic']);
+    assert.equal(r.code, 5, r.stderr);
+    assert.equal(llm.requests.filter((q) => q.headers['x-api-key'] !== undefined).length, 0);
+    assert.equal(llm.requests.length, 0);
+    assert.ok(!r.stderr.includes('sk-ant-test-0000000000000000'));
+  } finally { await sb.cleanup(); await sub.stop(); await llm.stop(); }
 });

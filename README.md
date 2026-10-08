@@ -141,6 +141,8 @@ substack config init --publication miapubblicazione \
 
 Con Anthropic: `export ANTHROPIC_API_KEY=...` e `--provider anthropic` (oppure `generate.provider` in `config.json`).
 
+La chiave Anthropic viene inviata **solo** a `https://api.anthropic.com`: `generate.baseUrl` vale esclusivamente per il provider `openai-compat` (server LLM locale o di rete) e non riceve mai `ANTHROPIC_API_KEY`, nemmeno con `--provider anthropic`. Il campo opzionale `generate.anthropicBaseUrl` accetta soltanto `https://api.anthropic.com` (qualsiasi altro valore rende la configurazione non valida).
+
 ## 6. Exit code
 
 | Codice | Significato |
