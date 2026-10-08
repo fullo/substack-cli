@@ -2,7 +2,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getApiKey, getSid, normalizeSid, saveSecret, secretsPermissionWarning } from '../../../src/auth/store.ts';
+import { getApiKey, getSid, normalizeApiKey, normalizeSid, saveSecret, secretsPermissionWarning } from '../../../src/auth/store.ts';
 import { AuthError, UsageError } from '../../../src/util/errors.ts';
 import { clearSecrets, redact } from '../../../src/util/redact.ts';
 import { withTmpDir } from '../../helpers/tmp.ts';
@@ -114,5 +114,52 @@ test('env vuote o solo spazi sono trattate come non impostate', async () => {
       assert.equal(await getApiKey({ ...env, SUBSTACK_LLM_API_KEY: empty }, 'llm'), 'llm-from-file-1234');
       assert.equal(await getSid({ ...env, SUBSTACK_SID: empty }), SID);
     }
+  });
+});
+
+const BAD_KEYS = ['', 'corta', 'a'.repeat(513), 'sk-ant\r\nX-Evil: 1', 'sk-ant-con spazio-123', 'sk-ant-\u0007-bell-123',
+  'sk-ant-\t-tab-12345', 'sk-ant-àccentata-123', 'sk-ant-‮-bidi-123'];
+
+test('normalizeApiKey: ASCII stampabile senza spazi, 8..512 caratteri; spazi esterni rimossi', () => {
+  assert.equal(normalizeApiKey('sk-ant-api03-AbC_123'), 'sk-ant-api03-AbC_123');
+  assert.equal(normalizeApiKey('  sk-ant-api03-AbC_123\n'), 'sk-ant-api03-AbC_123');
+  assert.equal(normalizeApiKey('a'.repeat(512)), 'a'.repeat(512));
+  for (const bad of BAD_KEYS) {
+    assert.throws(() => normalizeApiKey(bad), (e: unknown) => e instanceof UsageError && !e.message.includes(bad || '\u0000'), JSON.stringify(bad));
+  }
+});
+
+test('saveSecret valida anthropicKey e llmKey e non scrive nulla se non valide', async () => {
+  await withTmpDir(async (dir) => {
+    const env = { SUBSTACK_CLI_CONFIG_DIR: dir };
+    await saveSecret(env, { anthropicKey: 'sk-ant-valid-key-123' });
+    for (const bad of BAD_KEYS) {
+      await assert.rejects(saveSecret(env, { anthropicKey: bad }), UsageError, JSON.stringify(bad));
+      await assert.rejects(saveSecret(env, { llmKey: bad }), UsageError, JSON.stringify(bad));
+    }
+    assert.deepEqual(JSON.parse(await readFile(join(dir, 'secrets.json'), 'utf8')), { anthropicKey: 'sk-ant-valid-key-123' });
+  });
+});
+
+test('getApiKey valida le chiavi lette da env e da file', async () => {
+  await withTmpDir(async (dir) => {
+    const env = { SUBSTACK_CLI_CONFIG_DIR: dir };
+    await assert.rejects(getApiKey({ ...env, ANTHROPIC_API_KEY: 'sk-ant\r\nX-Evil: 1' }, 'anthropic'), UsageError);
+    await assert.rejects(getApiKey({ ...env, SUBSTACK_LLM_API_KEY: 'corta' }, 'llm'), UsageError);
+    assert.equal(await getApiKey({ ...env, ANTHROPIC_API_KEY: 'sk-ant-from-env-12345\n' }, 'anthropic'), 'sk-ant-from-env-12345');
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(join(dir, 'secrets.json'), JSON.stringify({ anthropicKey: 'chiave con spazi', llmKey: 'x\ny-12345678' }));
+    await assert.rejects(getApiKey(env, 'anthropic'), UsageError);
+    await assert.rejects(getApiKey(env, 'llm'), UsageError);
+  });
+});
+
+test('saveSecret ignora i campi undefined invece di cancellare i valori esistenti', async () => {
+  await withTmpDir(async (dir) => {
+    const env = { SUBSTACK_CLI_CONFIG_DIR: dir };
+    await saveSecret(env, { sid: SID, anthropicKey: 'sk-ant-valid-key-123' });
+    await saveSecret(env, { sid: undefined, anthropicKey: undefined, llmKey: 'llm-key-12345678' });
+    const saved = JSON.parse(await readFile(join(dir, 'secrets.json'), 'utf8'));
+    assert.deepEqual(saved, { sid: SID, anthropicKey: 'sk-ant-valid-key-123', llmKey: 'llm-key-12345678' });
   });
 });

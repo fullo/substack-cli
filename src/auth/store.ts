@@ -28,6 +28,19 @@ export function normalizeSid(input: string): string {
   return value;
 }
 
+// Chiavi API: ASCII stampabile senza spazi né caratteri di controllo (finiscono in un header HTTP).
+const API_KEY_RE = /^[\x21-\x7E]{8,512}$/;
+
+export function normalizeApiKey(input: string): string {
+  const value = input.trim();
+  if (!API_KEY_RE.test(value)) {
+    throw new UsageError(
+      'Chiave API non valida: deve essere di 8-512 caratteri ASCII stampabili, senza spazi né a capo.',
+    );
+  }
+  return value;
+}
+
 export function secretsPath(env: NodeJS.ProcessEnv): string {
   return join(configDir(env), 'secrets.json');
 }
@@ -65,13 +78,18 @@ export async function getApiKey(env: NodeJS.ProcessEnv, which: 'anthropic' | 'll
     const secrets = await readSecrets(env);
     key = which === 'anthropic' ? secrets.anthropicKey : secrets.llmKey;
   }
-  registerSecret(key);
-  return key;
+  if (key === undefined) return undefined;
+  const valid = normalizeApiKey(key);
+  registerSecret(valid);
+  return valid;
 }
 
 export async function saveSecret(env: NodeJS.ProcessEnv, patch: Secrets): Promise<void> {
-  const next: Secrets = { ...(await readSecrets(env)), ...patch };
+  const defined = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as Secrets;
+  const next: Secrets = { ...(await readSecrets(env)), ...defined };
   if (next.sid !== undefined) next.sid = normalizeSid(next.sid);
+  if (next.anthropicKey !== undefined) next.anthropicKey = normalizeApiKey(next.anthropicKey);
+  if (next.llmKey !== undefined) next.llmKey = normalizeApiKey(next.llmKey);
   await atomicWriteFile(secretsPath(env), JSON.stringify(next, null, 2) + '\n', 0o600);
 }
 
