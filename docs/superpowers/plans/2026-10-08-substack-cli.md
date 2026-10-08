@@ -17,6 +17,17 @@
 
 ---
 
+## Errata (from review of Tasks 1–6)
+
+Il codice già committato differisce da quello riportato nei Task 3–6 qui sotto; i task successivi devono partire dal codice reale, non dagli snippet.
+
+1. **Task 6 — `markdownToDoc` e input quadratici.** marked 18.1.0 è quadratico su delimitatori non chiusi (`*a *a …`, `_a_a…`, `~~a …`) e su sequenze come `!!!!`; l'annidamento profondo rifà il lavoro a ogni livello. Ora: limite di input `MAX_INPUT_BYTES = 300_000` byte UTF-8 (era 1 000 000 caratteri); il lexing usa `new Lexer({ ...getDefaults(), gfm: true, tokenizer: new GuardedTokenizer() })` (non più `marked.lexer`), dove `GuardedTokenizer` conta un limite superiore dei caratteri scansionati da `emStrong`/`del`/`inlineText` (budget deterministico `INLINE_WORK_BUDGET = 3_000_000`) e blocca l'annidamento di `blockquote`/`list`/`link`/`reflink`/`emStrong`/`del` oltre `MAX_LEX_DEPTH = MAX_DEPTH + 5` prima di ricorrere. Superamenti → `UsageError`. Test: `tests/unit/markdown/prosemirror-limits.test.ts`. Se si aggiorna marked, ricontrollare le condizioni replicate in `emStrongScans`/`delScans`.
+2. **Task 4 — `baseUrl`.** Ammessi solo `https://substack.com` e `https://*.substack.com`, oppure `http` su loopback (`localhost`, `127.0.0.1`, `[::1]`); rifiutati URL con credenziali (`user:pass@`) e altri schemi (prima era accettato qualsiasi host https). `generate.baseUrl`: solo `http`/`https`, senza credenziali (host di rete locale ammessi).
+3. **Task 3 — `withLock`.** Il file di lock contiene un token `pid.random`; il rilascio cancella il file solo se contiene ancora il proprio token; la presa in carico di un lock scaduto è serializzata da `<lock>.takeover` (creato con `wx`, scade dopo 30 s) e sposta il lock vecchio con `rename` su un nome univoco prima di ricrearlo con `wx`. Un solo vincitore tra contendenti concorrenti.
+4. **Task 5 — precedenza env/file.** `getSid`/`getApiKey`: variabili d'ambiente vuote o di soli spazi valgono come non impostate; `secrets.json` si legge solo se la variabile manca (un file corrotto non rompe un pod configurato via env).
+5. **Task 5 — chiavi API.** Nuova `normalizeApiKey` (trim, poi `^[\x21-\x7E]{8,512}$`): applicata in `saveSecret` e in lettura (env e file). `saveSecret` ignora i campi `undefined` della patch invece di cancellare i valori esistenti.
+6. **Task 6 — sanitizzazione del testo.** Filtro unico in `src/util/text.ts` (`FORBIDDEN_TEXT_CHARS`, `hasForbiddenChars`, `isSafeSingleLine`), esteso a U+061C, U+200B–U+200F, U+2028, U+2029, U+FEFF (tab e a capo restano ammessi nel corpo). `title`/`subtitle` del front-matter usano `isSafeSingleLine` (niente caratteri vietati, tab o a capo). `parseArticle` ignora un BOM UTF-8 iniziale.
+
 ## Mappa dei file
 
 | File | Responsabilità |
