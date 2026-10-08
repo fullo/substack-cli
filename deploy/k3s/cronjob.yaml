@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: substack-notes-run-due
+  namespace: substack
+spec:
+  schedule: "* * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 300
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+          containers:
+            - name: run-due
+              image: substack-cli:0.1.0
+              imagePullPolicy: IfNotPresent
+              args: ["notes", "run-due"]
+              envFrom:
+                - secretRef:
+                    name: substack-secrets
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - { name: config, mountPath: /config, readOnly: true }
+                - { name: data, mountPath: /data }
+          volumes:
+            - name: config
+              configMap:
+                name: substack-config
+            - name: data
+              persistentVolumeClaim:
+                claimName: substack-data
