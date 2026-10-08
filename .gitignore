@@ -1,6 +1,26 @@
+# dipendenze e build
 node_modules
 dist
+
+# output locale degli strumenti (solo la cartella in radice: docs/superpowers/reports è versionata)
+/reports
 .stryker-tmp
-reports
 *.tmp
+
+# sessioni e worktree degli agenti
 .claude/
+
+# segreti: non vanno mai nel repository
+.env
+.env.*
+!.env.example
+secrets.json
+config.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+kubeconfig
+*.kubeconfig
+.kube/
