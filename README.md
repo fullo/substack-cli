@@ -1,5 +1,7 @@
 # substack-cli
 
+**Sito:** https://fullo.github.io/substack-cli/ · **Stato: beta, strumento non ufficiale** (vedi «Limitazioni note»).
+
 CLI in Node/TypeScript per scrivere e pubblicare su Substack da terminale: bozze di articoli da file Markdown, pubblicazione e schedulazione, coda locale di note con pubblicazione programmata, generazione di testi con un LLM (Anthropic oppure un server compatibile OpenAI come llama.cpp). Dipendenze di runtime: solo `marked`, `yaml`, `zod`.
 
 ## 1. Cos'è e avvertenze
