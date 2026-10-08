@@ -88,3 +88,31 @@ test('secretsPermissionWarning segnala file leggibili da altri (solo POSIX)', { 
     assert.match((await secretsPermissionWarning(env)) ?? '', /0600/);
   });
 });
+
+test('env impostate: il file dei segreti (anche corrotto) non viene letto', async () => {
+  await withTmpDir(async (dir) => {
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(join(dir, 'secrets.json'), '{ rotto');
+    const env = { SUBSTACK_CLI_CONFIG_DIR: dir };
+    assert.equal(await getApiKey({ ...env, ANTHROPIC_API_KEY: 'sk-ant-from-env-12345' }, 'anthropic'), 'sk-ant-from-env-12345');
+    assert.equal(await getApiKey({ ...env, SUBSTACK_LLM_API_KEY: 'llm-from-env-12345' }, 'llm'), 'llm-from-env-12345');
+    assert.equal(await getSid({ ...env, SUBSTACK_SID: SID }), SID);
+  });
+});
+
+test('env vuote o solo spazi sono trattate come non impostate', async () => {
+  await withTmpDir(async (dir) => {
+    const env = { SUBSTACK_CLI_CONFIG_DIR: dir };
+    for (const empty of ['', '   ']) {
+      assert.equal(await getApiKey({ ...env, ANTHROPIC_API_KEY: empty }, 'anthropic'), undefined);
+      assert.equal(await getApiKey({ ...env, SUBSTACK_LLM_API_KEY: empty }, 'llm'), undefined);
+      await assert.rejects(getSid({ ...env, SUBSTACK_SID: empty }), AuthError);
+    }
+    await saveSecret(env, { sid: SID, anthropicKey: 'sk-ant-from-file-123', llmKey: 'llm-from-file-1234' });
+    for (const empty of ['', '   ']) {
+      assert.equal(await getApiKey({ ...env, ANTHROPIC_API_KEY: empty }, 'anthropic'), 'sk-ant-from-file-123');
+      assert.equal(await getApiKey({ ...env, SUBSTACK_LLM_API_KEY: empty }, 'llm'), 'llm-from-file-1234');
+      assert.equal(await getSid({ ...env, SUBSTACK_SID: empty }), SID);
+    }
+  });
+});

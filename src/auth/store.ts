@@ -43,8 +43,13 @@ async function readSecrets(env: NodeJS.ProcessEnv): Promise<Secrets> {
   }
 }
 
+// Una variabile d'ambiente vuota o di soli spazi (es. chiave vuota in un Secret k8s) è come non impostata.
+function fromEnv(value: string | undefined): string | undefined {
+  return value === undefined || value.trim() === '' ? undefined : value;
+}
+
 export async function getSid(env: NodeJS.ProcessEnv): Promise<string> {
-  const raw = env.SUBSTACK_SID ?? (await readSecrets(env)).sid;
+  const raw = fromEnv(env.SUBSTACK_SID) ?? (await readSecrets(env)).sid;
   if (!raw) {
     throw new AuthError('Cookie di sessione non configurato. Esegui "substack auth guide" per le istruzioni.');
   }
@@ -54,9 +59,12 @@ export async function getSid(env: NodeJS.ProcessEnv): Promise<string> {
 }
 
 export async function getApiKey(env: NodeJS.ProcessEnv, which: 'anthropic' | 'llm'): Promise<string | undefined> {
-  const fromEnv = which === 'anthropic' ? env.ANTHROPIC_API_KEY : env.SUBSTACK_LLM_API_KEY;
-  const secrets = await readSecrets(env);
-  const key = fromEnv ?? (which === 'anthropic' ? secrets.anthropicKey : secrets.llmKey);
+  const envKey = fromEnv(which === 'anthropic' ? env.ANTHROPIC_API_KEY : env.SUBSTACK_LLM_API_KEY);
+  let key = envKey;
+  if (key === undefined) {
+    const secrets = await readSecrets(env);
+    key = which === 'anthropic' ? secrets.anthropicKey : secrets.llmKey;
+  }
   registerSecret(key);
   return key;
 }
