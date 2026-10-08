@@ -202,3 +202,10 @@ Orario locale con fuso IANA (`--at "2026-10-09 09:00"`), upload di immagini loca
 - Le API interne di Substack possono cambiare senza preavviso → isolamento in un modulo, validatori, errori chiari, fixture da aggiornare.
 - L'automazione può violare i termini d'uso di Substack: l'uso è a rischio dell'utente, con pubblicazione sempre esplicita.
 - Il cookie scade: guida dedicata ed errore con exit code 2 per renderlo visibile in cron/k3s.
+
+## 15. Emendamenti emersi in fase di piano
+
+- `note add` accetta il testo come argomento oppure `-` (stdin); aggiunto `note unschedule <id>`.
+- `article schedule` accetta `--send-email` (default: nessuna email).
+- `tags` e `section` del front-matter sono rimandati finché la Fase 0 non conferma gli endpoint; il front-matter v1 accetta solo `title` e `subtitle` (chiavi sconosciute = errore, mai ignorate in silenzio).
+- Il runner di test usa il type stripping di Node (≥ 22.18): i test girano sui `.ts`; `tsc` serve per typecheck e build (`dist/cli/main.js`). La mutazione esegue i soli test unitari; i comandi CLI sono coperti dai test funzionali.
