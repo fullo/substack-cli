@@ -101,11 +101,21 @@ pre { max-width: 100%; }
 h2 { font-size: clamp(1.6rem, 3.2vw, 2.3rem); line-height: 1.12; margin: 0 0 20px; letter-spacing: -.01em; }
 h3 { font-size: 1.15rem; margin: 0 0 6px; }
 p { margin: 0 0 14px; }
+code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
 code { font-family: var(--mono); font-size: .9em; background: var(--paper-2); padding: .08em .35em; border: 1px solid var(--rule); }
 pre code { background: none; border: 0; padding: 0; }
 .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 8px; }
 .card { background: var(--card); border: 1.5px solid var(--ink); padding: 18px 18px 8px; }
 .card h3::before { content: attr(data-n); font-family: var(--mono); color: var(--pencil); margin-right: 10px; }
+
+.card { min-width: 0; }
+.card pre { margin: 10px 0 14px; padding: 10px 12px; overflow-x: auto; background: var(--paper-2); border: 1px solid var(--rule); font-family: var(--mono); font-size: .8rem; line-height: 1.6; }
+.card h3[data-n="A"]::before, .card h3[data-n="B"]::before, .card h3[data-n="C"]::before, .card h3[data-n="D"]::before { content: attr(data-n) "."; }
+
+.cmds { margin: 8px 0 0; border: 2px solid var(--ink); background: var(--card); }
+.cmds .c { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 16px; padding: 10px 14px; border-bottom: 1px dashed var(--rule); align-items: baseline; }
+.cmds .c:last-child { border-bottom: 0; }
+.cmds .c > code { white-space: normal; overflow-wrap: anywhere; }
 
 .rules { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 .rules li { padding-left: 34px; position: relative; }
@@ -147,6 +157,7 @@ footer p { max-width: 62em; }
   .figures div:nth-child(2) { border-right: 0; }
   .figures div:nth-child(-n+2) { border-bottom: 1px solid var(--rule); }
   .row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .cmds .c { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 }
 
 /* ---------- movimento: una sola entrata scaglionata ---------- */
