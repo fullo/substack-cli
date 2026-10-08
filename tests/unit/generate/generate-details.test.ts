@@ -45,7 +45,7 @@ Rispondi SOLO con il testo della nota, in Markdown semplice (paragrafi, **grasse
   await assert.rejects(generateNote(capture('x'.repeat(5001), []), OPTS), (e: unknown) => e instanceof InvalidOutputError &&
     e.message === "L'output generato non è una nota valida: la nota supera i 5000 caratteri" && e.raw === 'x'.repeat(5001));
   await assert.rejects(generateNote(capture('~~x~~', []), OPTS), (e: unknown) => e instanceof InvalidOutputError &&
-    e.message === "L'output generato non è una nota valida: Markdown non supportato (inline): del");
+    e.message.startsWith("L'output generato non è una nota valida: Markdown non supportato (inline): "));
 });
 
 test('extractMarkdown: recinto solo se occupa tutto il testo; contenuto interno ripulito', () => {

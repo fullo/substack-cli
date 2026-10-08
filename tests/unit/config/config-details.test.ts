@@ -33,15 +33,17 @@ test('JSON non valido: messaggio con percorso e dettaglio', async () => {
   });
 });
 
-test('validazione: messaggio esatto con percorso del campo e più problemi separati da "; "', async () => {
+// Si verifica il NOSTRO formato (prefisso, percorso del campo con ".", "(radice)", separatore "; " e i
+// messaggi scritti da noi), non il testo dei messaggi interni di zod.
+test('validazione: messaggio con percorso del campo e più problemi separati da "; "', async () => {
   await withTmpDir(async (dir) => {
     await writeFile(join(dir, 'config.json'), JSON.stringify({ publication: '-x', generate: { maxTokens: 0 } }));
     await assert.rejects(loadConfig({ SUBSTACK_CLI_CONFIG_DIR: dir }), (e: unknown) => e instanceof UsageError &&
-      e.message === 'Configurazione non valida: publication: subdomain non valido; generate.maxTokens: Number must be greater than or equal to 1');
+      /^Configurazione non valida: publication: subdomain non valido; generate\.maxTokens: \S/.test(e.message));
     await writeFile(join(dir, 'config.json'), JSON.stringify({ x: 1 }));
-    await assert.rejects(loadConfig({ SUBSTACK_CLI_CONFIG_DIR: dir }), /^UsageError: Configurazione non valida: \(radice\): Unrecognized key/);
+    await assert.rejects(loadConfig({ SUBSTACK_CLI_CONFIG_DIR: dir }), /^UsageError: Configurazione non valida: \(radice\): .*\bx\b/);
     await writeFile(join(dir, 'config.json'), JSON.stringify({ generate: { x: 1 } }));
-    await assert.rejects(loadConfig({ SUBSTACK_CLI_CONFIG_DIR: dir }), /generate: Unrecognized key/);
+    await assert.rejects(loadConfig({ SUBSTACK_CLI_CONFIG_DIR: dir }), /^UsageError: Configurazione non valida: generate: .*\bx\b/);
     await assert.rejects(loadConfig({ SUBSTACK_CLI_CONFIG_DIR: dir, SUBSTACK_BASE_URL: 'https://example.com' }), (e: unknown) =>
       e instanceof UsageError && e.message.includes('baseUrl: baseUrl deve essere https://substack.com o https://*.substack.com (http solo su localhost), senza credenziali'));
   });

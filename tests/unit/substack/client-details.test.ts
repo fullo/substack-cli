@@ -225,8 +225,8 @@ test('forma errata: messaggio con percorso del campo e status', async () => {
   await assert.rejects(client(() => json({ posts: [{ id: 'x' }] })).listDrafts(), (e: Error) =>
     e instanceof ApiShapeError && (e as ApiShapeError).httpStatus === 200 &&
     e.message.startsWith("Risposta inattesa su /api/v1/post_management/drafts?offset=0&limit=25&order_by=draft_updated_at&order_direction=desc (l'API di Substack potrebbe essere cambiata): posts.0.id: "));
-  await assert.rejects(client(() => json({ id: 1 })).listDrafts(), (e: Error) => /: posts: Required$/.test(e.message));
-  await assert.rejects(client(() => json({ a: 1 })).getProfile(), (e: Error) => /: id: Required$/.test(e.message));
+  await assert.rejects(client(() => json({ id: 1 })).listDrafts(), (e: Error) => /\(l'API di Substack potrebbe essere cambiata\): posts: \S/.test(e.message));
+  await assert.rejects(client(() => json({ a: 1 })).getProfile(), (e: Error) => /\(l'API di Substack potrebbe essere cambiata\): id: \S/.test(e.message));
   await assert.rejects(client(() => json({ id: 1, name: 2, handle: 3 })).getProfile(), (e: Error) =>
     /name: .*; handle: /.test(e.message));
 });
