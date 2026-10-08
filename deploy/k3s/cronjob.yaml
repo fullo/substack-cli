@@ -15,11 +15,13 @@ spec:
       template:
         spec:
           restartPolicy: Never
+          automountServiceAccountToken: false
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
             runAsGroup: 1000
             fsGroup: 1000
+            seccompProfile: { type: RuntimeDefault }
           containers:
             - name: run-due
               image: substack-cli:0.1.0
@@ -33,6 +35,9 @@ spec:
                 readOnlyRootFilesystem: true
                 capabilities:
                   drop: ["ALL"]
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { cpu: 500m, memory: 256Mi }
               volumeMounts:
                 - { name: config, mountPath: /config, readOnly: true }
                 - { name: data, mountPath: /data }

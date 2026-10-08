@@ -175,6 +175,8 @@ docker run --rm substack-cli:0.1.0 help
 
 L'immagine esegue come utente `node` (uid 1000), con `/config` e `/data` come cartelle di configurazione e dati.
 
+L'immagine finale non contiene npm, npx, corepack né yarn (rimossi dopo `npm ci`): solo `node` e il CLI compilato. Per build riproducibili fissa l'immagine base al digest (`node:22-alpine@sha256:...`), come indicato nel Dockerfile.
+
 ### k3s
 
 ```bash
@@ -200,9 +202,13 @@ unset SID
 kubectl apply -f deploy/k3s/job-auth-check.yaml      # verifica il cookie
 kubectl -n substack logs job/substack-auth-check
 kubectl apply -f deploy/k3s/cronjob.yaml             # run-due ogni minuto
-kubectl apply -f deploy/k3s/toolbox.yaml             # opzionale, per kubectl exec
+kubectl apply -f deploy/k3s/toolbox.yaml             # opzionale, per kubectl exec (parte con replicas: 0)
+kubectl -n substack scale deploy/substack-toolbox --replicas=1
 kubectl -n substack exec -it deploy/substack-toolbox -- node /app/dist/cli/main.js article list
+kubectl -n substack scale deploy/substack-toolbox --replicas=0   # spegnilo quando hai finito
 ```
+
+Il toolbox tiene il cookie nel proprio ambiente per tutto il tempo in cui è acceso: tienilo a 0 repliche quando non serve. Tutti i pod girano senza token del service account (`automountServiceAccountToken: false`), con profilo seccomp `RuntimeDefault`, filesystem di root in sola lettura e limiti di CPU/memoria (richieste 50m/64Mi, limiti 500m/256Mi).
 
 Rinnovo del cookie: rieseguire il comando `kubectl ... create secret ... --dry-run=client -o yaml | kubectl apply -f -` mostrato nella sezione 4; i prossimi Job leggono il nuovo valore (il toolbox va riavviato: `kubectl -n substack rollout restart deploy/substack-toolbox`). Per rieseguire il controllo: `kubectl -n substack delete job substack-auth-check` e di nuovo `apply`.
 
@@ -230,6 +236,8 @@ journalctl -u substack-notes.service -n 50
 ```
 
 Il file `env` contiene i segreti (`SUBSTACK_SID`, ecc.); tienilo leggibile solo dall'utente del servizio.
+
+Il servizio gira con `ProtectSystem=strict`, `ProtectHome=true`, `PrivateTmp`, `PrivateDevices`, nessuna capability (`CapabilityBoundingSet=` vuoto), solo socket `AF_UNIX`/`AF_INET`/`AF_INET6` (AF_UNIX per la risoluzione DNS locale), `MemoryMax=256M` e `UMask=0077`.
 
 ## 8. Sviluppo
 

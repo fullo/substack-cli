@@ -14,3 +14,10 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ReadWritePaths=/var/lib/substack-cli
 PrivateTmp=true
+ProtectHome=true
+PrivateDevices=true
+CapabilityBoundingSet=
+# AF_UNIX resta ammesso: la risoluzione DNS di glibc può passare da systemd-resolved/nscd via socket locale.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryMax=256M
+UMask=0077

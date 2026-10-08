@@ -1,17 +1,23 @@
+# Il toolbox tiene il cookie (e le eventuali chiavi API) nel proprio ambiente finché è in esecuzione:
+# per questo parte con replicas: 0. Avvialo solo quando serve e spegnilo subito dopo:
+#   kubectl -n substack scale deploy/substack-toolbox --replicas=1
+#   kubectl -n substack exec -it deploy/substack-toolbox -- node /app/dist/cli/main.js article list
+#   kubectl -n substack scale deploy/substack-toolbox --replicas=0
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: substack-toolbox
   namespace: substack
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels: { app: substack-toolbox }
   template:
     metadata:
       labels: { app: substack-toolbox }
     spec:
-      securityContext: { runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000 }
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: toolbox
           image: substack-cli:0.1.0
@@ -23,6 +29,9 @@ spec:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi }
           volumeMounts:
             - { name: config, mountPath: /config, readOnly: true }
             - { name: data, mountPath: /data }
@@ -31,5 +40,4 @@ spec:
           configMap: { name: substack-config }
         - name: data
           persistentVolumeClaim: { claimName: substack-data }
-# Uso:  kubectl -n substack exec -it deploy/substack-toolbox -- node /app/dist/cli/main.js article list
 # Nota: la PVC è ReadWriteOnce (local-path): CronJob e toolbox funzionano perché k3s a nodo singolo li schedula sullo stesso nodo.
