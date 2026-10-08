@@ -37,8 +37,9 @@ test('publishOne: esiti completi per revert, fail e uncertain, con errore annota
 
     const c = await store.add('c', T0);
     const out = await publishOne(store, c.id, async () => { throw 'non un Error'; }, T0);
-    assert.equal(out.kind, 'uncertain');
-    assert.ok(out.kind !== 'published' && out.error instanceof Error && out.error.message === 'non un Error');
+    if (out.kind !== 'uncertain') assert.fail(`esito inatteso: ${out.kind}`);
+    assert.ok(out.error instanceof Error);
+    assert.equal(out.error.message, 'non un Error');
     assert.equal((await store.get(c.id)).error, 'non un Error');
     assert.equal((await store.get(c.id)).status, 'publishing');
   });
