@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "command",
+  "commandRunner": { "command": "node --test --test-concurrency=4 \"tests/unit/**/*.test.ts\"" },
+  "mutate": [
+    "src/util/**/*.ts",
+    "src/config/**/*.ts",
+    "src/markdown/**/*.ts",
+    "src/notes/**/*.ts",
+    "src/substack/**/*.ts",
+    "src/auth/store.ts",
+    "src/generate/**/*.ts"
+  ],
+  "coverageAnalysis": "off",
+  "concurrency": 10,
+  "timeoutMS": 60000,
+  "tempDirName": ".stryker-tmp",
+  "ignorePatterns": ["dist", "docs", "deploy", "reports", ".stryker-tmp", "tsconfig*.json"],
+  "reporters": ["clear-text", "html", "json", "progress"],
+  "htmlReporter": { "fileName": "reports/mutation/index.html" },
+  "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+  "thresholds": { "high": 90, "low": 80, "break": 80 }
+}

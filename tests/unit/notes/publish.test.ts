@@ -136,8 +136,12 @@ test('due runDue concorrenti: il secondo fallisce per il lock (StateError)', asy
     await scheduled(store, 'x');
     let release!: () => void;
     const gate = new Promise<void>((r) => { release = r; });
-    const first = runDue(store, async () => { await gate; return { id: 'n' }; }, AFTER);
-    await new Promise((r) => setTimeout(r, 50));
+    // Il secondo runDue parte solo quando il primo è dentro il lock (sta pubblicando): niente attese a
+    // orologio, che sotto carico (es. mutation testing in parallelo) rendevano il test instabile.
+    let entered!: () => void;
+    const inside = new Promise<void>((r) => { entered = r; });
+    const first = runDue(store, async () => { entered(); await gate; return { id: 'n' }; }, AFTER);
+    await inside;
     await assert.rejects(runDue(store, async () => ({ id: 'm' }), AFTER), /in corso/);
     release();
     assert.equal((await first).published.length, 1);

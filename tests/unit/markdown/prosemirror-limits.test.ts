@@ -4,7 +4,13 @@ import { Tokenizer } from 'marked';
 import { markdownToDoc } from '../../../src/markdown/prosemirror.ts';
 import { UsageError } from '../../../src/util/errors.ts';
 
-const BUDGET_MS = 2000;
+// Sotto mutation testing (Stryker) il codice è strumentato (ogni espressione passa da uno switch di
+// mutanti, ~3x più lento qui) e girano più suite in parallelo: il budget a orologio di 2 s produrrebbe
+// "uccisioni" false di ogni mutante. Lì il budget viene scalato (resta comunque ordini di grandezza sotto
+// il tempo di un tokenizer quadratico senza guardie); con `npm test` resta 2000 ms. Il budget di lavoro
+// deterministico (INLINE_WORK_BUDGET) è verificato senza orologio in prosemirror-details.test.ts.
+const UNDER_MUTATION = '__stryker__' in globalThis;
+const BUDGET_MS = UNDER_MUTATION ? 10_000 : 2000;
 const SIZES = [20_000, 100_000, 290_000];
 
 function fill(unit: string, size: number): string {
