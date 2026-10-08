@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ProviderError } from '../util/errors.ts';
+import { readBodyLimited } from '../util/http.ts';
 import type { GenerateRequest, Provider } from './provider.ts';
 
 const ResponseSchema = z.object({
@@ -37,9 +38,12 @@ export function anthropicProvider(opts: AnthropicOptions): Provider {
         throw new ProviderError(`Chiamata ad Anthropic fallita: ${(e as Error).message}`);
       }
       if (!res.ok) throw new ProviderError(`Anthropic ha risposto con stato ${res.status}`);
+      const body = await readBodyLimited(res);
+      if (!body.ok && body.reason === 'too-large') throw new ProviderError('Risposta di Anthropic troppo grande (max 5 MB)');
+      if (!body.ok) throw new ProviderError(`Lettura della risposta di Anthropic interrotta: ${body.error.message}`);
       let data: unknown;
       try {
-        data = await res.json();
+        data = JSON.parse(body.text);
       } catch {
         throw new ProviderError('Risposta di Anthropic non JSON');
       }

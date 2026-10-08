@@ -78,3 +78,32 @@ test('LLM non raggiungibile → exit 5; senza --topic → exit 64; anthropic sen
     assert.equal((await sb.run(['generate', 'article', '--topic', 'x', '--provider', 'anthropic'])).code, 5);
   } finally { await sb.cleanup(); await sub.stop(); }
 });
+
+test('server LLM che risponde con un corpo chunked oltre 5 MB: exit 5, nessun file né bozza', async () => {
+  const sub = await startFakeSubstack();
+  let sentBeforeClose = -1;
+  const model = await FakeServer.start((_req, res) => {
+    let sent = 0;
+    const chunk = Buffer.alloc(64 * 1024, 0x61);
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.on('close', () => { sentBeforeClose = sent; });
+    const pump = () => {
+      while (sent < 64 * 1024 * 1024) {
+        sent += chunk.length;
+        if (!res.write(chunk)) { res.once('drain', pump); return; }
+      }
+      res.end();
+    };
+    pump();
+  });
+  const sb = await makeSandbox(sub.url);
+  try {
+    await configure(sb, model.url);
+    const r = await sb.run(['generate', 'article', '--topic', 'x', '--draft']);
+    assert.equal(r.code, 5, r.stderr);
+    assert.match(r.stderr, /troppo grande/);
+    assert.equal(sub.count('POST', '/api/v1/drafts'), 0);
+    for (let i = 0; i < 50 && sentBeforeClose < 0; i++) await new Promise((ok) => setTimeout(ok, 20));
+    assert.ok(sentBeforeClose >= 0 && sentBeforeClose < 32 * 1024 * 1024, `byte inviati: ${sentBeforeClose}`);
+  } finally { await sb.cleanup(); await sub.stop(); await model.stop(); }
+});

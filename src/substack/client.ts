@@ -9,10 +9,10 @@
 import type { z } from 'zod';
 import type { PMDoc } from '../markdown/prosemirror.ts';
 import { ApiShapeError, AuthError, NetworkError, RateLimitError, UsageError } from '../util/errors.ts';
+import { readBodyLimited } from '../util/http.ts';
 import { AnySchema, DraftCreatedSchema, DraftListSchema, DraftSchema, NoteCreatedSchema, ProfileSchema } from './schemas.ts';
 import type { Draft, Profile } from './schemas.ts';
 
-const MAX_BODY = 5_000_000;
 const USER_AGENT = 'substack-cli/0.1 (+https://github.com/local/substack-cli)';
 
 export interface ClientOptions {
@@ -39,32 +39,6 @@ function parseRetryAfter(header: string | null): number | undefined {
   if (/^\d+$/.test(header)) return Number(header) * 1000;
   const when = Date.parse(header);
   return Number.isNaN(when) ? undefined : Math.max(0, when - Date.now());
-}
-
-/**
- * Legge il corpo fermandosi oltre `limit` byte (undefined = troppo grande). Senza content-length
- * (risposta chunked) res.text() leggerebbe in memoria un corpo arbitrariamente grande prima di
- * qualsiasi controllo; qui il trasferimento viene interrotto appena il limite è superato.
- */
-async function readLimited(res: Response, limit: number): Promise<string | undefined> {
-  if (!res.body) {
-    const text = await res.text();
-    return Buffer.byteLength(text, 'utf8') > limit ? undefined : text;
-  }
-  const reader = res.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > limit) {
-      await reader.cancel().catch(() => undefined);
-      return undefined;
-    }
-    chunks.push(value);
-  }
-  return Buffer.concat(chunks).toString('utf8');
 }
 
 export class SubstackClient {
@@ -131,10 +105,13 @@ export class SubstackClient {
       throw new ApiShapeError(`Stato HTTP inatteso ${res.status} su ${path}`, res.status);
     }
 
-    const declared = Number(res.headers.get('content-length') ?? '0');
-    if (declared > MAX_BODY) throw new ApiShapeError(`Risposta troppo grande su ${path}`, res.status);
-    const text = await readLimited(res, MAX_BODY);
-    if (text === undefined) throw new ApiShapeError(`Risposta troppo grande su ${path}`, res.status);
+    const body = await readBodyLimited(res);
+    if (!body.ok && body.reason === 'too-large') throw new ApiShapeError(`Risposta troppo grande su ${path}`, res.status);
+    if (!body.ok) {
+      // Timeout o connessione chiusa durante la lettura: errore di rete (riprovato se la richiesta è idempotente).
+      throw new NetworkError(`Lettura della risposta da ${new URL(url).host}${path} interrotta: ${this.scrub(body.error.message)}`);
+    }
+    const text = body.text;
 
     let data: unknown = null;
     if (text.length > 0) {

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ProviderError } from '../util/errors.ts';
+import { readBodyLimited } from '../util/http.ts';
 import type { GenerateRequest, Provider } from './provider.ts';
 
 const ResponseSchema = z.object({
@@ -38,9 +39,12 @@ export function openaiCompatProvider(opts: OpenAiCompatOptions): Provider {
         throw new ProviderError(`Chiamata al server LLM fallita: ${(e as Error).message}`);
       }
       if (!res.ok) throw new ProviderError(`Il server LLM ha risposto con stato ${res.status}`);
+      const body = await readBodyLimited(res);
+      if (!body.ok && body.reason === 'too-large') throw new ProviderError('Risposta del server LLM troppo grande (max 5 MB)');
+      if (!body.ok) throw new ProviderError(`Lettura della risposta del server LLM interrotta: ${body.error.message}`);
       let data: unknown;
       try {
-        data = await res.json();
+        data = JSON.parse(body.text);
       } catch {
         throw new ProviderError('Risposta del server LLM non JSON');
       }
