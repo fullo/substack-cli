@@ -1,6 +1,7 @@
 import { Lexer, Tokenizer, getDefaults } from 'marked';
 import type { Links, Token, Tokens } from 'marked';
 import { UsageError } from '../util/errors.ts';
+import { hasForbiddenChars } from '../util/text.ts';
 
 export interface PMMark { type: string; attrs?: Record<string, unknown> }
 export interface PMNode {
@@ -37,7 +38,6 @@ const INLINE_WORK_BUDGET = 3_000_000;
 const MAX_LEX_DEPTH = MAX_DEPTH + 5;
 const LINK_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
 const IMAGE_SCHEMES = new Set(['https:']);
-const FORBIDDEN_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F‪-‮⁦-⁩]/;
 
 export function unescapeHtml(s: string): string {
   const map: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" };
@@ -272,7 +272,7 @@ export function markdownToDoc(markdown: string): PMDoc {
   if (Buffer.byteLength(markdown, 'utf8') > MAX_INPUT_BYTES) {
     throw new UsageError('Contenuto troppo grande (max 300 KB)');
   }
-  if (FORBIDDEN_CHARS.test(markdown)) {
+  if (hasForbiddenChars(markdown)) {
     throw new UsageError('Il testo contiene caratteri di controllo o di direzione non ammessi');
   }
   let content: PMNode[];

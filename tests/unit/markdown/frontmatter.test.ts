@@ -45,3 +45,20 @@ test('un "---" nel corpo non chiude di nuovo il front-matter', () => {
 test('corpo vuoto: errore', () => {
   assert.throws(() => parseArticle('---\ntitle: T\n---\n\n'), UsageError);
 });
+
+test('title e subtitle: caratteri di controllo, bidi, invisibili e a capo sono rifiutati', () => {
+  const bads = ['a‮b', 'a\u0007b', 'a‏b', 'a﻿b', 'a b'];
+  for (const bad of bads) {
+    assert.throws(() => parseArticle(`---\ntitle: "${bad}"\n---\n\nCorpo`), UsageError, `title ${JSON.stringify(bad)}`);
+    assert.throws(() => parseArticle(`---\ntitle: T\nsubtitle: "${bad}"\n---\n\nCorpo`), UsageError, `subtitle ${JSON.stringify(bad)}`);
+  }
+  assert.throws(() => parseArticle('---\ntitle: "riga uno\nriga due"\n---\n\nCorpo'), /title/);
+  assert.throws(() => parseArticle('---\ntitle: T\nsubtitle: "a\rb"\n---\n\nCorpo'), /subtitle/);
+  assert.throws(() => parseArticle('---\ntitle: |\n  blocco\n  su due righe\n---\n\nCorpo'), /title/);
+});
+
+test('un BOM UTF-8 iniziale viene ignorato', () => {
+  const a = parseArticle('﻿' + OK);
+  assert.equal(a.frontMatter.title, 'Il mio titolo');
+  assert.equal(parseArticle('﻿---\r\ntitle: T\r\n---\r\n\r\nCiao\r\n').frontMatter.title, 'T');
+});

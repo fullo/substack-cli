@@ -1,13 +1,16 @@
 import { parse } from 'yaml';
 import { z } from 'zod';
 import { UsageError } from '../util/errors.ts';
+import { isSafeSingleLine } from '../util/text.ts';
 import { markdownToDoc } from './prosemirror.ts';
 import type { PMDoc } from './prosemirror.ts';
 
+const SINGLE_LINE_MSG = 'deve stare su una riga, senza caratteri di controllo, di direzione o invisibili';
+
 const FrontMatterSchema = z
   .object({
-    title: z.string().min(1).max(300),
-    subtitle: z.string().max(500).optional(),
+    title: z.string().min(1).max(300).refine(isSafeSingleLine, SINGLE_LINE_MSG),
+    subtitle: z.string().max(500).refine(isSafeSingleLine, SINGLE_LINE_MSG).optional(),
   })
   .strict();
 
@@ -19,7 +22,8 @@ export interface ParsedArticle {
 }
 
 export function parseArticle(source: string): ParsedArticle {
-  const text = source.replace(/\r\n/g, '\n');
+  // Un BOM UTF-8 iniziale (comune nei file salvati su Windows) non fa parte del contenuto.
+  const text = source.replace(/^﻿/, '').replace(/\r\n/g, '\n');
   if (!text.startsWith('---\n')) {
     throw new UsageError('Front-matter mancante: il file deve iniziare con "---" e contenere almeno "title"');
   }

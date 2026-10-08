@@ -92,3 +92,10 @@ test('limiti: annidamento eccessivo e input enorme', () => {
   assert.throws(() => markdownToDoc('a'.repeat(1_000_001)), UsageError);
   assert.throws(() => markdownToDoc('> '.repeat(60) + 'x'), UsageError);
 });
+
+test('corpo: segni di direzione, separatori di riga/paragrafo, BOM e spazi a larghezza zero sono rifiutati', () => {
+  for (const ch of ['​', '‌', '‍', '‎', '‏', '؜', ' ', ' ', '﻿']) {
+    assert.throws(() => markdownToDoc(`a${ch}b`), UsageError, `U+${ch.codePointAt(0)!.toString(16)}`);
+  }
+  assert.equal(markdownToDoc('riga\tcon tab\nseconda riga').content.length, 1);
+});
