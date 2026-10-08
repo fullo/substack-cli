@@ -5,7 +5,6 @@ import type { NoteStatus } from '../../notes/store.ts';
 import { publishOne, runDue } from '../../notes/publish.ts';
 import { parseFutureInstant } from '../../util/clock.ts';
 import { StateError, UsageError } from '../../util/errors.ts';
-import { withLock } from '../../util/fs.ts';
 import type { Ctx } from '../context.ts';
 import { emit, flag, makeClient, readSource, str } from '../shared.ts';
 import type { Command } from '../shared.ts';
@@ -31,7 +30,8 @@ export const noteCommands: Command[] = [
       const arg = positionals[0];
       if (!arg) throw new UsageError('Uso: substack note add <testo|->');
       const text = arg === '-' ? (await readSource(ctx, '-')).trim() : arg;
-      const note = await storeFor(ctx).add(text, ctx.now());
+      const store = storeFor(ctx);
+      const note = await store.locked(() => store.add(text, ctx.now()));
       emit(ctx, values, note, `Nota aggiunta (draft): ${note.id}`);
       return 0;
     },
@@ -60,7 +60,9 @@ export const noteCommands: Command[] = [
       const at = str(values, 'at');
       if (!at) throw new UsageError('Uso: substack note schedule <id> --at <data ISO con offset>');
       const when = parseFutureInstant(at, ctx.now());
-      const note = await storeFor(ctx).schedule(requireId(positionals), when, ctx.now());
+      const id = requireId(positionals);
+      const store = storeFor(ctx);
+      const note = await store.locked(() => store.schedule(id, when, ctx.now()));
       emit(ctx, values, note, `Nota ${note.id} schedulata per ${note.publishAt}`);
       return 0;
     },
@@ -70,7 +72,9 @@ export const noteCommands: Command[] = [
     summary: 'Riporta una nota schedulata allo stato draft',
     options: {},
     async run(ctx, { values, positionals }) {
-      const note = await storeFor(ctx).unschedule(requireId(positionals));
+      const id = requireId(positionals);
+      const store = storeFor(ctx);
+      const note = await store.locked(() => store.unschedule(id));
       emit(ctx, values, note, `Nota ${note.id} di nuovo in draft`);
       return 0;
     },
@@ -83,7 +87,7 @@ export const noteCommands: Command[] = [
       const id = requireId(positionals);
       const store = storeFor(ctx);
       const client = await makeClient(ctx);
-      const outcome = await withLock(store.lockPath, () => publishOne(store, id, (doc) => client.postNote(doc), ctx.now()));
+      const outcome = await store.locked(() => publishOne(store, id, (doc) => client.postNote(doc), ctx.now(), ['draft', 'scheduled']));
       if (outcome.kind === 'published') {
         emit(ctx, values, { id, substackId: outcome.substackId }, `Nota ${id} pubblicata (id Substack ${outcome.substackId})`);
         return 0;
@@ -102,7 +106,8 @@ export const noteCommands: Command[] = [
       if (flag(values, 'published') === flag(values, 'retry')) throw new UsageError('Specifica esattamente una opzione tra --published e --retry');
       const store = storeFor(ctx);
       const how = flag(values, 'published') ? 'published' : 'retry';
-      const note = await withLock(store.lockPath, () => store.resolve(requireId(positionals), how, ctx.now()));
+      const id = requireId(positionals);
+      const note = await store.locked(() => store.resolve(id, how, ctx.now()));
       emit(ctx, values, note, `Nota ${note.id} → ${note.status}`);
       return 0;
     },

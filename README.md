@@ -122,6 +122,8 @@ substack note resolve <id> --published          # oppure --retry, per una nota b
 
 Stati di una nota: `draft`, `scheduled`, `publishing`, `published`, `failed`.
 
+Ogni comando che modifica la coda (`note add/schedule/unschedule/publish/resolve`, `generate note`, `notes run-due`) prende il lock `<dataDir>/notes/.lock`: se un altro comando lo tiene, esce con codice 6 ("Operazione già in corso") e va semplicemente ripetuto. `run-due` rilegge ogni nota sotto lock prima di pubblicarla (una nota tolta o rimandata durante il giro non parte), rinnova il lock prima di ogni nota e si interrompe se un altro processo lo ha preso in carico; su SIGTERM/SIGINT il lock viene rilasciato prima di uscire.
+
 ### Generazione con un LLM
 
 ```bash

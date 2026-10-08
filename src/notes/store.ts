@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { markdownToDoc } from '../markdown/prosemirror.ts';
 import { StateError, UsageError } from '../util/errors.ts';
-import { atomicWriteFile } from '../util/fs.ts';
+import { atomicWriteFile, withLock } from '../util/fs.ts';
 
 const STATUSES = ['draft', 'scheduled', 'publishing', 'published', 'failed'] as const;
 export type NoteStatus = (typeof STATUSES)[number];
@@ -43,7 +43,16 @@ export class NoteStore {
     return join(this.dir, `${id}.json`);
   }
 
-  private async write(note: Note): Promise<Note> {
+  /**
+   * Esegue fn sotto il lock della coda. Le operazioni di questa classe sono letture-modifica-scritture
+   * NON protette: chi le usa da un comando della CLI deve passare di qui (run-due e "note publish"
+   * tengono già il lock e chiamano direttamente le primitive, senza rientrare nel lock).
+   */
+  locked<T>(fn: () => Promise<T>): Promise<T> {
+    return withLock(this.lockPath, fn);
+  }
+
+  protected async write(note: Note): Promise<Note> {
     await atomicWriteFile(this.path(note.id), JSON.stringify(note, null, 2) + '\n');
     return note;
   }
@@ -119,8 +128,9 @@ export class NoteStore {
     });
   }
 
-  async beginPublish(id: string): Promise<Note> {
-    return this.transition(id, ['draft', 'scheduled'], (n) => {
+  /** `from`: stati ammessi (run-due passa solo "scheduled"; "note publish" anche "draft"). */
+  async beginPublish(id: string, from: ('draft' | 'scheduled')[] = ['draft', 'scheduled']): Promise<Note> {
+    return this.transition(id, from, (n) => {
       const { error: _e, ...rest } = n;
       return { ...rest, status: 'publishing', prevStatus: n.status as 'draft' | 'scheduled' };
     });

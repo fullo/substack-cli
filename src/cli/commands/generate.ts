@@ -88,7 +88,8 @@ export const generateCommands: Command[] = [
       const config = await loadConfig(ctx.env);
       const provider = await buildProvider(ctx, config, str(values, 'provider'));
       const text = await generateNote(provider, { topic: topicOf(values), lang: str(values, 'lang') ?? 'it', maxTokens: config.generate.maxTokens });
-      const note = await storeFor(ctx).add(text, ctx.now());
+      const store = storeFor(ctx);
+      const note = await store.locked(() => store.add(text, ctx.now()));
       emit(ctx, values, note, `Nota generata (draft): ${note.id}\n${text}`);
       return 0;
     },

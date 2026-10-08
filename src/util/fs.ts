@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import { link, mkdir, open, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { readFileSync, rmSync } from 'node:fs';
+import { link, mkdir, open, readFile, rename, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { StateError } from './errors.ts';
 
@@ -119,12 +120,67 @@ async function release(lockPath: string, token: string): Promise<void> {
   if ((await readTextIfExists(lockPath)) === token) await rm(lockPath, { force: true });
 }
 
-export async function withLock<T>(lockPath: string, fn: () => Promise<T>, staleMs = 10 * 60_000): Promise<T> {
+// Lock tenuti da questo processo (percorso → token), per rilasciarli anche su SIGTERM/SIGINT.
+const held = new Map<string, string>();
+
+export interface LockHandle {
+  /**
+   * Heartbeat: verifica che il lock contenga ancora il nostro token e ne rinnova la data, così chi
+   * lavora più di staleMs (es. run-due con molte note) non viene considerato morto. StateError se
+   * il lock è sparito o è stato preso in carico da un altro processo: chi lo tiene deve fermarsi.
+   */
+  refresh(): Promise<void>;
+}
+
+export async function withLock<T>(
+  lockPath: string, fn: (lock: LockHandle) => Promise<T>, staleMs = 10 * 60_000,
+): Promise<T> {
   await mkdir(dirname(lockPath), { recursive: true, mode: 0o700 });
   const token = await acquire(lockPath, staleMs);
+  held.set(lockPath, token);
+  const handle: LockHandle = {
+    async refresh() {
+      if ((await readTextIfExists(lockPath)) !== token) {
+        throw new StateError(`Lock perso: ${lockPath} è stato rimosso o preso in carico da un altro processo`);
+      }
+      const now = new Date();
+      await utimes(lockPath, now, now);
+    },
+  };
   try {
-    return await fn();
+    return await fn(handle);
   } finally {
+    held.delete(lockPath);
     await release(lockPath, token);
+  }
+}
+
+/** Rilascio sincrono e best-effort dei lock di questo processo (solo se contengono ancora il nostro token). */
+export function releaseHeldLocksSync(): void {
+  for (const [path, token] of held) {
+    try {
+      if (readFileSync(path, 'utf8') === token) rmSync(path, { force: true });
+    } catch {
+      // già rimosso o illeggibile: niente da fare
+    }
+    held.delete(path);
+  }
+}
+
+const SIGNAL_EXIT = { SIGINT: 130, SIGTERM: 143 } as const;
+
+/**
+ * Su SIGTERM (es. activeDeadlineSeconds di k3s) e SIGINT rilascia i lock prima di uscire: altrimenti
+ * il lock resterebbe fino alla sua scadenza e i run-due successivi fallirebbero.
+ */
+export function installLockCleanupOnSignals(
+  proc: Pick<NodeJS.EventEmitter, 'once'> = process,
+  exit: (code: number) => void = (code) => process.exit(code),
+): void {
+  for (const [signal, code] of Object.entries(SIGNAL_EXIT)) {
+    proc.once(signal, () => {
+      releaseHeldLocksSync();
+      exit(code);
+    });
   }
 }
