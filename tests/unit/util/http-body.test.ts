@@ -91,3 +91,11 @@ for (const [name, make] of [
     assert.equal(state.produced, 0);
   });
 }
+
+test('content-length oltre il limite e corpo assente: rifiutato senza errori interni', async () => {
+  const p = openaiCompatProvider({
+    baseUrl: 'http://llm.local', model: 'm', timeoutMs: 5000,
+    fetchImpl: makeFetch(() => new Response(null, { status: 200, headers: { 'content-length': '6000000' } })),
+  });
+  await assert.rejects(p.generate(REQ), (e: unknown) => e instanceof ProviderError && /troppo grande/.test(e.message));
+});

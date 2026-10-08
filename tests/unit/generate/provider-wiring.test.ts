@@ -48,6 +48,8 @@ test('generate.anthropicBaseUrl: ammesso solo https con host esattamente api.ant
     'http://api.anthropic.com', 'https://api.anthropic.com.evil.com', 'https://evil.com', 'https://anthropic.com',
     'https://x.api.anthropic.com', 'https://u:p@api.anthropic.com', 'https://api.anthropic.com:8443', 'http://127.0.0.1:8080',
     'https://api.anthropic.com/v1?x=1', 'non un url', '',
+    'https://u@api.anthropic.com', 'https://:p@api.anthropic.com', 'https://api.anthropic.com/v1', 'https://api.anthropic.com/?x=1',
+    'https://api.anthropic.com/#h',
   ]) {
     assert.throws(() => validateConfig({ generate: { anthropicBaseUrl: bad } }),
       (e: unknown) => e instanceof UsageError && e.message.includes('generate.anthropicBaseUrl'), bad);

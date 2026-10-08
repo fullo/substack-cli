@@ -50,6 +50,7 @@ test('config.json non valido: il messaggio riporta solo la posizione, mai il con
       ['segreto=1', undefined],
       ['{"publication": "p", segreto-nel-posto-sbagliato}', 'riga 1, colonna 22'],
       ['{\n  "publication": "p"\n  "segreto-nel-posto-sbagliato": 1\n}', 'riga 3, colonna 3'],
+      ['{\n\n\n\n\n\n\n\n\n\n\n"a": 1 segreto}', 'riga 12, colonna 8'],
     ] as const) {
       await writeFile(file, content);
       await assert.rejects(loadConfig({ SUBSTACK_CLI_CONFIG_DIR: dir }), (e: unknown) => {
@@ -58,6 +59,7 @@ test('config.json non valido: il messaggio riporta solo la posizione, mai il con
         assert.ok(!e.message.includes('SUBSTACK_SID'), e.message);
         assert.ok(e.message.startsWith(`config.json non è JSON valido (${file})`), e.message);
         if (where) assert.ok(e.message.endsWith(where), e.message);
+        else assert.equal(e.message, `config.json non è JSON valido (${file})`);
         return true;
       }, content);
     }
