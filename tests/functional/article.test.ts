@@ -105,7 +105,7 @@ test('article schedule / cancel', async () => {
   const { server, sb, done } = await setup();
   try {
     const env = { SUBSTACK_NOW: '2026-10-08T10:00:00Z' };
-    const ok = await sb.run(['article', 'schedule', '1001', '--at', '2026-10-09T09:00:00+02:00'], { env });
+    const ok = await sb.run(['article', 'schedule', '1001', '--at', '2026-10-09T09:00:00+02:00', '--yes'], { env });
     assert.equal(ok.code, 0, ok.stderr);
     const sch = JSON.parse(server.requests.find((q) => q.path.endsWith('/scheduled_release'))!.body);
     assert.equal(sch.trigger_at, '2026-10-09T07:00:00.000Z');

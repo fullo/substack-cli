@@ -65,7 +65,7 @@ substack auth login                 login via Playwright (opzionale, interattivo
 substack article draft <file|->     crea una bozza online da Markdown
 substack article list               elenca le bozze/articoli
 substack article publish <id>       pubblica una bozza esistente
-substack article schedule <id> --at <data> | --cancel
+substack article schedule <id> --at <data> [--yes] [--dry-run] | --cancel
 
 substack note add <testo|file|->    aggiunge una nota alla coda locale (draft)
 substack note list [--status ...]
@@ -207,5 +207,6 @@ Orario locale con fuso IANA (`--at "2026-10-09 09:00"`), upload di immagini loca
 
 - `note add` accetta il testo come argomento oppure `-` (stdin); aggiunto `note unschedule <id>`.
 - `article schedule` accetta `--send-email` (default: nessuna email).
+- (Revisione di sicurezza) `article schedule --at` è una pubblicazione differita e ha lo stesso gating di `article publish`: senza terminale serve `--yes` (verificato prima di ogni richiesta di rete); in modo interattivo mostra titolo, data ed email e chiede di scrivere `programma`; `--dry-run` non schedula. `--cancel` resta senza conferma.
 - `tags` e `section` del front-matter sono rimandati finché la Fase 0 non conferma gli endpoint; il front-matter v1 accetta solo `title` e `subtitle` (chiavi sconosciute = errore, mai ignorate in silenzio).
 - Il runner di test usa il type stripping di Node (≥ 22.18): i test girano sui `.ts`; `tsc` serve per typecheck e build (`dist/cli/main.js`). La mutazione esegue i soli test unitari; i comandi CLI sono coperti dai test funzionali.

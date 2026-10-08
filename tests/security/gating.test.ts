@@ -52,7 +52,7 @@ test('l\'email agli iscritti parte solo con --send-email esplicito', async () =>
   const sb = await makeSandbox(server.url);
   try {
     assert.equal((await sb.run(['article', 'publish', '1001', '--yes'])).code, 0);
-    assert.equal((await sb.run(['article', 'schedule', '1001', '--at', '2999-01-01T00:00:00Z'])).code, 0);
+    assert.equal((await sb.run(['article', 'schedule', '1001', '--at', '2999-01-01T00:00:00Z', '--yes'])).code, 0);
     const pub = server.requests.find((q) => q.path === '/api/v1/drafts/1001/publish')!;
     assert.equal(JSON.parse(pub.body).send, false);
     const sch = server.requests.find((q) => q.path === '/api/v1/drafts/1001/scheduled_release')!;
@@ -100,5 +100,49 @@ test('SUBSTACK_NOW senza SUBSTACK_ALLOW_TEST_CLOCK=1 è ignorato (nessuna pubbli
     // Controprova: con il flag a "1" l'orologio finto vale davvero (il test sopra non è vacuo).
     const dry = await sb.run(['notes', 'run-due', '--dry-run', '--json'], { env: { SUBSTACK_NOW: '3000-01-01T00:00:00Z', SUBSTACK_ALLOW_TEST_CLOCK: '1' } });
     assert.deepEqual(JSON.parse(dry.stdout).due, [id]);
+  } finally { await sb.cleanup(); await server.stop(); }
+});
+
+const SCHEDULE = /\/api\/v1\/drafts\/[^/]+\/scheduled_release/;
+
+test('article schedule --at non interattivo senza --yes: exit 64 e nessuna richiesta di rete', async () => {
+  const server = await startFakeSubstack();
+  const sb = await makeSandbox(server.url);
+  try {
+    const at = '2999-01-01T00:00:00Z';
+    for (const args of [
+      ['article', 'schedule', '1001', '--at', at],
+      ['article', 'schedule', '1001', '--at', at, '--send-email'],
+      ['article', 'schedule', '1001', '--at', at, '--json'],
+      ['article', 'schedule', '1001', '--at', at, '--yes=false'],
+      ['article', 'schedule', '1001', '--at', at, '-y'],
+      ['article', 'schedule', '1001', '--at', at, '--ye'],
+      ['article', 'schedule', '1001', '--at', at, 'yes'],
+      ['article', 'schedule', '1001', '--at', at, '--dry-run=false'],
+      ['article', 'schedule', '--', '1001', '--at', at, '--yes'],
+    ]) {
+      const r = await sb.run(args, { stdin: 'programma\n' }); // anche con la parola di conferma su stdin
+      assert.equal(r.code, 64, `${args.join(' ')}\n${r.stderr}`);
+      assert.ok(!/schedulata/.test(r.stdout), args.join(' '));
+    }
+    assert.equal(server.requests.length, 0);
+  } finally { await sb.cleanup(); await server.stop(); }
+});
+
+test('article schedule: con --yes schedula; --dry-run non schedula; --cancel resta senza conferma', async () => {
+  const server = await startFakeSubstack();
+  const sb = await makeSandbox(server.url);
+  try {
+    const dry = await sb.run(['article', 'schedule', '1001', '--at', '2999-01-01T00:00:00Z', '--dry-run', '--send-email', '--json']);
+    assert.equal(dry.code, 0, dry.stderr);
+    const d = JSON.parse(dry.stdout);
+    assert.deepEqual([d.dryRun, d.id, d.title, d.scheduledFor, d.sendEmail], [true, 1001, 'Titolo di prova', '2999-01-01T00:00:00.000Z', true]);
+    assert.equal(server.requests.filter((q) => SCHEDULE.test(q.path)).length, 0);
+    const ok = await sb.run(['article', 'schedule', '1001', '--at', '2999-01-01T00:00:00Z', '--yes']);
+    assert.equal(ok.code, 0, ok.stderr);
+    assert.equal(server.requests.filter((q) => SCHEDULE.test(q.path)).length, 1);
+    const cancel = await sb.run(['article', 'schedule', '1001', '--cancel']);
+    assert.equal(cancel.code, 0, cancel.stderr);
+    assert.equal(JSON.parse(server.requests.filter((q) => SCHEDULE.test(q.path)).at(-1)!.body).trigger_at, null);
   } finally { await sb.cleanup(); await server.stop(); }
 });

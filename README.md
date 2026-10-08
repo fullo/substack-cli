@@ -99,7 +99,9 @@ substack article list                           # bozze più recenti
 substack article publish 123                    # chiede conferma
 substack article publish 123 --yes              # pubblica senza email
 substack article publish 123 --yes --send-email # pubblica e invia l'email agli iscritti
-substack article schedule 123 --at 2026-10-09T09:00:00+02:00   # schedulazione nativa Substack
+substack article schedule 123 --at 2026-10-09T09:00:00+02:00   # schedulazione nativa Substack: chiede conferma ("programma")
+substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --yes        # senza prompt (obbligatorio da script/cron)
+substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --dry-run    # mostra titolo, data ed email senza schedulare
 substack article schedule 123 --cancel                          # annulla la schedulazione
 ```
 

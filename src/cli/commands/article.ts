@@ -71,21 +71,42 @@ export const articleCommands: Command[] = [
   },
   {
     path: 'article schedule',
-    summary: 'Schedula (--at <ISO con offset>) o annulla (--cancel) la pubblicazione nativa di Substack',
-    options: { at: { type: 'string' }, cancel: { type: 'boolean' }, 'send-email': { type: 'boolean' } },
+    summary: 'Schedula (--at <ISO con offset>, richiede conferma o --yes) o annulla (--cancel) la pubblicazione nativa di Substack',
+    options: {
+      at: { type: 'string' }, cancel: { type: 'boolean' }, 'send-email': { type: 'boolean' },
+      yes: { type: 'boolean' }, 'dry-run': { type: 'boolean' },
+    },
     async run(ctx, { values, positionals }) {
       const id = parseDraftId(positionals[0]);
       const at = str(values, 'at');
       const cancel = flag(values, 'cancel');
       if ((at === undefined) === !cancel) throw new UsageError('Specifica esattamente una opzione tra --at <data> e --cancel');
-      const client = await makeClient(ctx);
       if (cancel) {
-        await client.cancelSchedule(id);
+        // Annullare non pubblica nulla: nessuna conferma richiesta.
+        await (await makeClient(ctx)).cancelSchedule(id);
         emit(ctx, values, { id, cancelled: true }, `Schedulazione annullata per la bozza ${id}`);
         return 0;
       }
       const when = parseFutureInstant(at as string, ctx.now());
       const sendEmail = flag(values, 'send-email');
+      const dry = flag(values, 'dry-run');
+      // Una schedulazione è una pubblicazione differita: stesso gating di "article publish",
+      // verificato prima di qualsiasi richiesta di rete.
+      if (!dry && !flag(values, 'yes') && !ctx.isInteractive) {
+        throw new UsageError('Schedulazione non interattiva: aggiungi --yes per confermare esplicitamente');
+      }
+      const client = await makeClient(ctx);
+      const title = (await client.getDraft(id)).draft_title ?? '(senza titolo)';
+      const summary = `Schedulazione di "${title}" (id ${id}) per ${when.toISOString()} — email agli iscritti: ${sendEmail ? 'SÌ' : 'no'}`;
+      if (dry) {
+        emit(ctx, values, { dryRun: true, id, title, scheduledFor: when.toISOString(), sendEmail }, `[dry-run] ${summary}`);
+        return 0;
+      }
+      if (!flag(values, 'yes')) {
+        ctx.err(summary);
+        const answer = await ctx.prompt('Scrivi "programma" per confermare: ');
+        if (answer.trim().toLowerCase() !== 'programma') throw new UsageError('Schedulazione annullata');
+      }
       await client.scheduleDraft(id, when, { sendEmail });
       emit(ctx, values, { id, scheduledFor: when.toISOString(), sendEmail },
         `Bozza ${id} schedulata per ${when.toISOString()} (email: ${sendEmail ? 'sì' : 'no'})`);
