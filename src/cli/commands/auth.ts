@@ -33,7 +33,9 @@ export const authCommands: Command[] = [
     summary: 'Salva il cookie substack.sid (prompt nascosto o stdin) e lo verifica',
     options: { 'no-check': { type: 'boolean' } },
     async run(ctx, { values }) {
-      const raw = ctx.isInteractive ? await ctx.prompt('Incolla il valore di substack.sid (non verrà mostrato): ', { hidden: true }) : await ctx.readStdin();
+      // Con stdin da terminale il cookie va sempre chiesto con il prompt nascosto: leggerlo "da stdin"
+      // lo farebbe comparire a schermo mentre lo si incolla (anche con stdout rediretto).
+      const raw = ctx.stdinIsTTY ? await ctx.prompt('Incolla il valore di substack.sid (non verrà mostrato): ', { hidden: true }) : await ctx.readStdin();
       if (raw.trim() === '') throw new UsageError('Nessun valore ricevuto. Vedi "substack auth guide".');
       const sid = normalizeSid(raw);
       registerSecret(sid);

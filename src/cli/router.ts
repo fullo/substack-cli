@@ -1,4 +1,5 @@
 import { parseArgs } from 'node:util';
+import { testClockNow } from '../util/clock.ts';
 import { CliError, UsageError } from '../util/errors.ts';
 import { redact } from '../util/redact.ts';
 import { articleCommands } from './commands/article.ts';
@@ -31,6 +32,9 @@ function reportError(e: unknown, ctx: Ctx): number {
 }
 
 export async function run(argv: string[], ctx: Ctx): Promise<number> {
+  // L'orologio di test cambia cosa run-due considera scaduto: se attivo deve essere sempre visibile.
+  const fake = testClockNow(ctx.env);
+  if (fake) ctx.err(`Attenzione: orologio di test attivo (SUBSTACK_NOW=${fake.toISOString()}): non usarlo in produzione`);
   try {
     const [group, sub, ...rest] = argv;
     if (group === undefined || group === 'help' || group === '--help' || group === '-h') {

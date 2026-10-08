@@ -1,11 +1,16 @@
 import { UsageError } from './errors.ts';
 
-export function currentTime(env: NodeJS.ProcessEnv): Date {
+/** Orologio finto per i test (SUBSTACK_NOW), valido solo con SUBSTACK_ALLOW_TEST_CLOCK=1 esatto. */
+export function testClockNow(env: NodeJS.ProcessEnv): Date | undefined {
   if (env.SUBSTACK_ALLOW_TEST_CLOCK === '1' && env.SUBSTACK_NOW) {
     const d = new Date(env.SUBSTACK_NOW);
     if (!Number.isNaN(d.getTime())) return d;
   }
-  return new Date();
+  return undefined;
+}
+
+export function currentTime(env: NodeJS.ProcessEnv): Date {
+  return testClockNow(env) ?? new Date();
 }
 
 const ISO = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/;

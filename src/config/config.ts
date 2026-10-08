@@ -82,7 +82,9 @@ export async function loadConfig(env: NodeJS.ProcessEnv): Promise<Config> {
     try {
       raw = JSON.parse(text) as Record<string, unknown>;
     } catch (e) {
-      throw new UsageError(`config.json non è JSON valido (${path}): ${(e as Error).message}`);
+      // Mai il messaggio del parser: può riportare un estratto del file (es. un segreto incollato qui per errore).
+      const pos = /\(line (\d+) column (\d+)\)/.exec((e as Error).message);
+      throw new UsageError(`config.json non è JSON valido (${path})${pos ? `: riga ${pos[1]}, colonna ${pos[2]}` : ''}`);
     }
   }
   if (env.SUBSTACK_PUBLICATION) raw = { ...raw, publication: env.SUBSTACK_PUBLICATION };

@@ -8,10 +8,13 @@ Trattalo come una password: chi lo possiede può agire come te.
 3. Chrome/Edge: scheda "Application" -> "Cookies" -> "https://substack.com".
    Firefox: scheda "Storage" -> "Cookies". Safari: "Archiviazione" -> "Cookie".
 4. Trova la riga "substack.sid" e copia il suo VALORE (inizia di solito con "s%3A").
-5. Salvalo sul dispositivo/VM dove gira il CLI, in uno di questi modi:
+5. Salvalo sul dispositivo/VM dove gira il CLI, in uno di questi modi
+   (mai il valore scritto sulla riga di comando: finirebbe nella cronologia della shell e in "ps"):
    a) interattivo (il valore non viene mostrato):   substack auth set
-   b) da stdin (utile via SSH):                       printf '%s' "<valore>" | substack auth set
-   c) variabile d'ambiente (senza file):              export SUBSTACK_SID="<valore>"
+   b) da stdin (utile via SSH o in uno script):
+        read -rs SID && printf '%s' "$SID" | substack auth set; unset SID
+   c) variabile d'ambiente (senza file):
+        read -rs SUBSTACK_SID && export SUBSTACK_SID
 6. Verifica:  substack auth check
    Se risponde "Sessione valida", sei a posto.
 
@@ -21,9 +24,11 @@ Se non hai un browser a portata di mano: sul tuo PC installa Playwright
 "substack auth login": apre un browser, fai login a mano e il cookie viene salvato;
 con "--print" lo stampa per copiarlo sulla VM.
 
-Kubernetes (k3s): aggiorna il Secret senza ricreare nulla:
-   kubectl -n substack create secret generic substack-secrets \\
-     --from-literal=SUBSTACK_SID="<valore>" --dry-run=client -o yaml | kubectl apply -f -
+Kubernetes (k3s): crea o aggiorna il Secret leggendo il valore da stdin:
+   read -rs SID
+   printf '%s' "$SID" | kubectl -n substack create secret generic substack-secrets \\
+     --from-file=SUBSTACK_SID=/dev/stdin --dry-run=client -o yaml | kubectl apply -f -
+   unset SID
 
 Il cookie scade ogni tanto: quando "substack auth check" esce con codice 2,
 ripeti questa guida.

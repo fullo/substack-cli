@@ -10,6 +10,8 @@ export interface Ctx {
   err(text: string): void;
   readStdin(): Promise<string>;
   isInteractive: boolean;
+  /** stdin è un terminale: i segreti si chiedono con il prompt nascosto anche se stdout è rediretto. */
+  stdinIsTTY: boolean;
   prompt(question: string, opts?: { hidden?: boolean }): Promise<string>;
   now(): Date;
   fetchImpl: typeof fetch;
@@ -69,6 +71,7 @@ export function createContext(): Ctx {
     err: (text) => { process.stderr.write(escapeForTerminal(redact(text)) + '\n'); },
     readStdin: readAllStdin,
     isInteractive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
+    stdinIsTTY: Boolean(process.stdin.isTTY),
     prompt: async (question, opts) => {
       if (opts?.hidden) return promptHidden(question);
       const rl = createInterface({ input: process.stdin, output: process.stderr });

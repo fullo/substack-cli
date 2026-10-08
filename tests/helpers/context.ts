@@ -11,6 +11,7 @@ export function testContext(overrides: Partial<Ctx> = {}): TestCtx {
     err: (t) => { stderr.push(t); },
     readStdin: async () => '',
     isInteractive: false,
+    stdinIsTTY: false,
     prompt: async () => '',
     now: () => new Date('2026-10-08T10:00:00Z'),
     fetchImpl: (async () => { throw new Error('rete non consentita nei test'); }) as typeof fetch,

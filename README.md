@@ -43,6 +43,8 @@ Variabili d'ambiente (hanno la precedenza su `secrets.json`; valori vuoti equiva
 | `SUBSTACK_CLI_CONFIG_DIR` | cartella di `config.json` e `secrets.json` |
 | `SUBSTACK_CLI_DATA_DIR` | cartella dei dati (coda note, `drafts/`) |
 
+Solo per i test: `SUBSTACK_NOW` (data ISO) sostituisce l'orologio, ma soltanto se anche `SUBSTACK_ALLOW_TEST_CLOCK=1`. Quando l'orologio di test è attivo ogni comando stampa un avviso su stderr: non impostare queste variabili in produzione (anticiperebbero o ritarderebbero la pubblicazione delle note).
+
 ## 4. Autenticazione (tutorial passo passo)
 
 Il testo seguente è lo stesso di `substack auth guide`.
@@ -53,21 +55,23 @@ Substack non ha API key: il CLI usa il cookie `substack.sid` del tuo account. Tr
 2. Apri gli strumenti sviluppatore del browser (F12).
 3. Chrome/Edge: scheda "Application" -> "Cookies" -> "https://substack.com". Firefox: scheda "Storage" -> "Cookies". Safari: "Archiviazione" -> "Cookie".
 4. Trova la riga `substack.sid` e copia il suo VALORE (inizia di solito con `s%3A`).
-5. Salvalo sul dispositivo/VM dove gira il CLI, in uno di questi modi:
+5. Salvalo sul dispositivo/VM dove gira il CLI, in uno di questi modi (mai il valore scritto sulla riga di comando: finirebbe nella cronologia della shell e in `ps`):
    - a) interattivo (il valore non viene mostrato): `substack auth set`
-   - b) da stdin (utile via SSH): `printf '%s' "<valore>" | substack auth set`
-   - c) variabile d'ambiente (senza file): `export SUBSTACK_SID="<valore>"`
+   - b) da stdin (utile via SSH o in uno script): `read -rs SID && printf '%s' "$SID" | substack auth set; unset SID`
+   - c) variabile d'ambiente (senza file): `read -rs SUBSTACK_SID && export SUBSTACK_SID`
 6. Verifica: `substack auth check`. Se risponde "Sessione valida", sei a posto.
 
 **Senza poter caricare file sulla VM:** usa (b) o (c) da una sessione SSH.
 
 **Senza browser a portata di mano:** sul tuo PC installa Playwright (`npm install --no-save playwright && npx playwright install chromium`) ed esegui `substack auth login`: si apre un browser, fai login a mano e il cookie viene salvato; con `--print` viene stampato per poterlo copiare sulla VM.
 
-**Kubernetes (k3s):** aggiorna il Secret senza ricreare nulla:
+**Kubernetes (k3s):** crea o aggiorna il Secret leggendo il valore da stdin:
 
 ```bash
-kubectl -n substack create secret generic substack-secrets \
-  --from-literal=SUBSTACK_SID="<valore>" --dry-run=client -o yaml | kubectl apply -f -
+read -rs SID
+printf '%s' "$SID" | kubectl -n substack create secret generic substack-secrets \
+  --from-file=SUBSTACK_SID=/dev/stdin --dry-run=client -o yaml | kubectl apply -f -
+unset SID
 ```
 
 Il cookie scade ogni tanto: quando `substack auth check` esce con codice 2, ripeti la procedura.
@@ -182,10 +186,15 @@ kubectl apply -f deploy/k3s/namespace.yaml
 kubectl apply -f deploy/k3s/configmap.yaml
 kubectl apply -f deploy/k3s/pvc.yaml
 
-# Secret: NON committare valori reali; crealo dalla riga di comando
-kubectl -n substack create secret generic substack-secrets \
-  --from-literal=SUBSTACK_SID="<valore>"
-# (opzionali: --from-literal=ANTHROPIC_API_KEY=... --from-literal=SUBSTACK_LLM_API_KEY=...)
+# Secret: NON committare valori reali e non scriverli sulla riga di comando (cronologia della shell, ps)
+read -rs SID
+printf '%s' "$SID" | kubectl -n substack create secret generic substack-secrets \
+  --from-file=SUBSTACK_SID=/dev/stdin
+unset SID
+# Con più chiavi (ANTHROPIC_API_KEY, SUBSTACK_LLM_API_KEY): un file temporaneo leggibile solo da te
+#   (umask 077; cat > /dev/shm/substack.env)    # incolla le righe CHIAVE=valore, poi Ctrl+D
+#   kubectl -n substack create secret generic substack-secrets --from-env-file=/dev/shm/substack.env
+#   shred -u /dev/shm/substack.env
 # deploy/k3s/secret.example.yaml mostra solo la forma.
 
 kubectl apply -f deploy/k3s/job-auth-check.yaml      # verifica il cookie
@@ -212,7 +221,7 @@ Su una VM, con il progetto compilato in `/opt/substack-cli`, un utente `substack
 
 ```bash
 sudo install -m 0600 -o substack /dev/null /etc/substack-cli/env
-echo 'SUBSTACK_SID=<valore>' | sudo tee -a /etc/substack-cli/env >/dev/null
+read -rs SID && printf 'SUBSTACK_SID=%s\n' "$SID" | sudo sh -c 'cat > /etc/substack-cli/env'; unset SID
 sudo cp deploy/systemd/substack-notes.service deploy/systemd/substack-notes.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now substack-notes.timer
