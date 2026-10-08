@@ -72,6 +72,11 @@ export async function loadConfig(env: NodeJS.ProcessEnv): Promise<Config> {
   }
   if (env.SUBSTACK_PUBLICATION) raw = { ...raw, publication: env.SUBSTACK_PUBLICATION };
   if (env.SUBSTACK_BASE_URL) raw = { ...raw, baseUrl: env.SUBSTACK_BASE_URL };
+  return validateConfig(raw);
+}
+
+/** Valida un oggetto di configurazione (senza file né variabili d'ambiente). */
+export function validateConfig(raw: unknown): Config {
   const parsed = ConfigSchema.safeParse(raw);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `${i.path.join('.') || '(radice)'}: ${i.message}`).join('; ');

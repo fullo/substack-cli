@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdir, writeFile } from 'node:fs/promises';
+import { copyFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { NoteStore } from '../../../src/notes/store.ts';
 import { StateError, UsageError } from '../../../src/util/errors.ts';
@@ -128,5 +128,20 @@ test('un file modificato a mano con stato non valido viene segnalato', async () 
     const n = await store.add('x', NOW);
     await writeFile(join(dir, `${n.id}.json`), JSON.stringify({ ...n, status: 'boh' }));
     await assert.rejects(store.get(n.id), StateError);
+  });
+});
+
+test('un file la cui nota ha un id diverso dal nome del file è corrotto (niente duplicati in coda)', async () => {
+  await withTmpDir(async (dir) => {
+    const store = new NoteStore(dir);
+    const n = await store.add('originale', NOW);
+    await copyFile(join(dir, `${n.id}.json`), join(dir, '000000000000.json'));
+    await assert.rejects(store.get('000000000000'), (e: Error) =>
+      e instanceof StateError && e.message === `File nota corrotto o modificato in modo non valido: ${join(dir, '000000000000.json')}`);
+    const { notes, corrupt } = await store.list();
+    assert.deepEqual(notes.map((x) => x.id), [n.id]);
+    assert.deepEqual(corrupt, ['000000000000.json']);
+    await assert.rejects(store.beginPublish('000000000000'), StateError);
+    assert.equal((await store.get(n.id)).status, 'draft');
   });
 });

@@ -68,3 +68,14 @@ test('BOM solo iniziale; CRLF convertiti in tutto il file', () => {
   assert.equal(a.frontMatter.subtitle, 'S');
   assert.equal(a.doc.content[0]!.content![0]!.text, 'Uno\nDue');
 });
+
+test('il parsing del front-matter non emette avvisi di processo (che ripeterebbero il testo grezzo su stderr)', async () => {
+  const warnings: string[] = [];
+  const onWarning = (w: Error) => { warnings.push(w.name); };
+  process.on('warning', onWarning);
+  try {
+    parseArticle('---\ntitle: T\nsubtitle: !!weird z\n---\n\nx');
+    await new Promise((ok) => setImmediate(ok));
+  } finally { process.off('warning', onWarning); }
+  assert.deepEqual(warnings, []);
+});

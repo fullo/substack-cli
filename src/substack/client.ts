@@ -41,6 +41,32 @@ function parseRetryAfter(header: string | null): number | undefined {
   return Number.isNaN(when) ? undefined : Math.max(0, when - Date.now());
 }
 
+/**
+ * Legge il corpo fermandosi oltre `limit` byte (undefined = troppo grande). Senza content-length
+ * (risposta chunked) res.text() leggerebbe in memoria un corpo arbitrariamente grande prima di
+ * qualsiasi controllo; qui il trasferimento viene interrotto appena il limite è superato.
+ */
+async function readLimited(res: Response, limit: number): Promise<string | undefined> {
+  if (!res.body) {
+    const text = await res.text();
+    return Buffer.byteLength(text, 'utf8') > limit ? undefined : text;
+  }
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > limit) {
+      await reader.cancel().catch(() => undefined);
+      return undefined;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 export class SubstackClient {
   private readonly sid: string;
   private readonly publicationUrl: string;
@@ -107,8 +133,8 @@ export class SubstackClient {
 
     const declared = Number(res.headers.get('content-length') ?? '0');
     if (declared > MAX_BODY) throw new ApiShapeError(`Risposta troppo grande su ${path}`, res.status);
-    const text = await res.text();
-    if (text.length > MAX_BODY) throw new ApiShapeError(`Risposta troppo grande su ${path}`, res.status);
+    const text = await readLimited(res, MAX_BODY);
+    if (text === undefined) throw new ApiShapeError(`Risposta troppo grande su ${path}`, res.status);
 
     let data: unknown = null;
     if (text.length > 0) {

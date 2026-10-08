@@ -35,7 +35,9 @@ export function parseArticle(source: string): ParsedArticle {
   const yamlText = text.slice(4, end);
   let data: unknown;
   try {
-    data = parse(yamlText, { maxAliasCount: 0, schema: 'core', uniqueKeys: true });
+    // logLevel 'error': gli avvisi della libreria andrebbero su stderr via process.emitWarning,
+    // ripetendo il testo grezzo (non fidato, es. output di un LLM) fuori dal nostro filtro.
+    data = parse(yamlText, { maxAliasCount: 0, schema: 'core', uniqueKeys: true, logLevel: 'error' });
   } catch (e) {
     throw new UsageError(`Front-matter YAML non valido: ${(e as Error).message}`);
   }

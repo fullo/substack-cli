@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { configDir, dataDir, globalUrl, loadConfig, publicationUrl } from '../../../src/config/config.ts';
+import { configDir, dataDir, globalUrl, loadConfig, publicationUrl, validateConfig } from '../../../src/config/config.ts';
 import { UsageError } from '../../../src/util/errors.ts';
 import { withTmpDir } from '../../helpers/tmp.ts';
 
@@ -88,4 +88,12 @@ test('publicationUrl e globalUrl', () => {
   assert.equal(publicationUrl({ ...base, baseUrl: 'http://127.0.0.1:9/' }), 'http://127.0.0.1:9');
   assert.equal(globalUrl({ ...base, baseUrl: 'http://127.0.0.1:9/' }), 'http://127.0.0.1:9');
   assert.throws(() => publicationUrl({ ...base }), UsageError);
+});
+
+test('validateConfig valida l\'oggetto in sé, senza file né variabili d\'ambiente', () => {
+  assert.equal(validateConfig({ publication: 'buona' }).publication, 'buona');
+  assert.equal(validateConfig({}).generate.provider, 'anthropic');
+  assert.throws(() => validateConfig({ publication: 'evil.example/x' }), (e: Error) =>
+    e instanceof UsageError && e.message === 'Configurazione non valida: publication: subdomain non valido');
+  assert.throws(() => validateConfig({ publication: 'ok', generate: { baseUrl: 'file:///etc/passwd' } }), UsageError);
 });

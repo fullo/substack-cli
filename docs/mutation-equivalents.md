@@ -4,6 +4,8 @@ Mutation testing con Stryker (`npm run mutation`, runner a comando sui soli test
 Ultima analisi completa: 2026-10-08, 1523 mutanti, punteggio totale **96.06%**
 (1401 uccisi, 62 timeout, 60 sopravvissuti, 0 senza copertura). Tutti i 60 sopravvissuti sono
 elencati qui: nessuno è stato escluso con `// Stryker disable`.
+Dopo il red team (Task 15) le righe modificate sono state rianalizzate con `--mutate` mirato
+(67 mutanti, 92.54%): i 3 nuovi sopravvissuti equivalenti sono aggiunti sotto e i numeri di riga aggiornati.
 
 Categorie del motivo:
 
@@ -36,7 +38,7 @@ coperti da test e i relativi mutanti sono uccisi.
 | 28 | ConditionalExpression `Number(mi) > 59` → false | ridondante: V8 rifiuta minuti 60 |
 | 28 | ConditionalExpression/EqualityOperator su `s !== undefined && Number(s) > 59` (3) | ridondante: V8 rifiuta secondi 60; `Number(undefined) > 59` è comunque false |
 
-## src/markdown/frontmatter.ts (9)
+## src/markdown/frontmatter.ts (10)
 
 | riga | mutatore | motivo |
 |---|---|---|
@@ -45,10 +47,11 @@ coperti da test e i relativi mutanti sono uccisi.
 | 32 | ConditionalExpression (`end === -1` → false) | ridondante: con `end === -1` `afterFence` è `undefined` e il secondo ramo lancia lo stesso errore |
 | 32 | UnaryOperator (`-1` → `+1`) | come sopra |
 | 32 | OptionalChaining (`afterFence?.` → `afterFence.`) | irraggiungibile: `afterFence` è `undefined` solo se `end === -1`, già cortocircuitato |
-| 38 | StringLiteral (`schema: 'core'` → `''`) | libreria: yaml usa comunque lo schema core di default; nessun effetto osservabile |
-| 45 | StringLiteral (`join('.')` → `join('')`) | irraggiungibile: lo schema del front-matter è piatto, i percorsi hanno un solo segmento |
-| 49 | StringLiteral (`afterFence ?? ''`) | irraggiungibile: qui `afterFence` è sempre definito |
-| 49 | Regex (`/^\n/` → `/\n/`) | ridondante: `afterFence` è `''` oppure inizia con `\n` (garantito dalla riga 32) |
+| 40 | StringLiteral (`schema: 'core'` → `''`) | libreria: yaml usa comunque lo schema core di default; nessun effetto osservabile |
+| 40 | StringLiteral (`logLevel: 'error'` → `''`) | libreria: con un livello sconosciuto yaml non emette avvisi, come con `'error'`; il test verifica che non arrivino avvisi di processo |
+| 47 | StringLiteral (`join('.')` → `join('')`) | irraggiungibile: lo schema del front-matter è piatto, i percorsi hanno un solo segmento |
+| 51 | StringLiteral (`afterFence ?? ''`) | irraggiungibile: qui `afterFence` è sempre definito |
+| 51 | Regex (`/^\n/` → `/\n/`) | ridondante: `afterFence` è `''` oppure inizia con `\n` (garantito dalla riga 32) |
 
 ## src/markdown/prosemirror.ts (19)
 
@@ -78,12 +81,13 @@ coperti da test e i relativi mutanti sono uccisi.
 | 62 | ConditionalExpression (`publishAt !== undefined` → true) | ridondante: `new Date(undefined)` è NaN e il confronto `<= now` è false |
 | 63 | StringLiteral (`publishAt ?? ''`) (2) | irraggiungibile: le note scadute hanno sempre `publishAt` |
 
-## src/notes/store.ts (2)
+## src/notes/store.ts (3)
 
 | riga | mutatore | motivo |
 |---|---|---|
 | 63 | StringLiteral (`readFile(path, 'utf8')` → `''`) | libreria: senza codifica valida si ottiene un Buffer che `JSON.parse` converte comunque in testo UTF-8 |
-| 76 | ArrayDeclaration (`names` iniziale) | irraggiungibile: usato solo se la cartella manca; il valore finto non supera il filtro sui nomi |
+| 72 | StringLiteral (messaggio dell'errore interno sull'id diverso dal nome del file) | equivalente: l'errore è intercettato subito e sostituito dallo StateError "File nota corrotto" |
+| 80 | ArrayDeclaration (`names` iniziale) | irraggiungibile: usato solo se la cartella manca; il valore finto non supera il filtro sui nomi |
 
 ## src/config/config.ts (1)
 
@@ -91,15 +95,16 @@ coperti da test e i relativi mutanti sono uccisi.
 |---|---|---|
 | 20 | BlockStatement (`catch { return undefined; }` → `{}`) | equivalente: un blocco vuoto restituisce comunque `undefined` |
 
-## src/substack/client.ts (5)
+## src/substack/client.ts (6)
 
 | riga | mutatore | motivo |
 |---|---|---|
 | 31 | ConditionalExpression (`value === undefined` → false) | ridondante: la regex su `"undefined"` fallisce e il messaggio usa `value ?? ''` |
 | 38 | ConditionalExpression (`!header` → false) | ridondante: `null`/`''` non passano la regex e `Date.parse` dà NaN → `undefined` |
-| 87 | ConditionalExpression (`init.body === undefined` → false) | equivalente: `JSON.stringify(undefined)` è `undefined` |
-| 104 | EqualityOperator (`>= 300` → `> 300`) | irraggiungibile: lo stato 300 è già gestito come redirect |
-| 108 | StringLiteral (`?? '0'` → `''`) | equivalente: `Number('')` è 0 |
+| 51 | StringLiteral (`Buffer.byteLength(text, 'utf8')` → `''`) | libreria: Buffer usa UTF-8 di default |
+| 113 | ConditionalExpression (`init.body === undefined` → false) | equivalente: `JSON.stringify(undefined)` è `undefined` |
+| 130 | EqualityOperator (`>= 300` → `> 300`) | irraggiungibile: lo stato 300 è già gestito come redirect |
+| 134 | StringLiteral (`?? '0'` → `''`) | equivalente: `Number('')` è 0 |
 
 ## src/generate/generate.ts (4)
 

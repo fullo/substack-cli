@@ -1,6 +1,5 @@
-import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { configDir, loadConfig } from '../../config/config.ts';
+import { configDir, loadConfig, validateConfig } from '../../config/config.ts';
 import { UsageError } from '../../util/errors.ts';
 import { atomicWriteFile, readTextIfExists } from '../../util/fs.ts';
 import { emit, flag, str } from '../shared.ts';
@@ -29,14 +28,11 @@ export const configCommands: Command[] = [
         throw new UsageError(`${path} esiste già (usa --force per sovrascrivere)`);
       }
       const candidate = Object.keys(generate).length ? { publication, generate } : { publication };
-      // Scrive, poi rilegge con lo stesso schema usato a runtime; se non valida, rimuove il file.
+      // Valida il contenuto stesso PRIMA di scrivere: rileggere il file con loadConfig non basta,
+      // perché SUBSTACK_PUBLICATION/SUBSTACK_BASE_URL/SUBSTACK_CLI_CONFIG mascherano i valori scritti,
+      // e rimuovere il file dopo un fallimento distruggerebbe la config esistente (--force).
+      validateConfig(candidate);
       await atomicWriteFile(path, JSON.stringify(candidate, null, 2) + '\n', 0o644);
-      try {
-        await loadConfig(ctx.env);
-      } catch (e) {
-        await rm(path, { force: true });
-        throw e;
-      }
       emit(ctx, values, { path }, `Configurazione scritta in ${path}`);
       return 0;
     },

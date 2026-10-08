@@ -2,6 +2,7 @@ import { createInterface } from 'node:readline/promises';
 import { currentTime } from '../util/clock.ts';
 import { UsageError } from '../util/errors.ts';
 import { redact } from '../util/redact.ts';
+import { escapeForTerminal } from '../util/text.ts';
 
 export interface Ctx {
   env: NodeJS.ProcessEnv;
@@ -64,8 +65,8 @@ export function createContext(): Ctx {
   const env = process.env;
   return {
     env,
-    out: (text) => { process.stdout.write(redact(text) + '\n'); },
-    err: (text) => { process.stderr.write(redact(text) + '\n'); },
+    out: (text) => { process.stdout.write(escapeForTerminal(redact(text)) + '\n'); },
+    err: (text) => { process.stderr.write(escapeForTerminal(redact(text)) + '\n'); },
     readStdin: readAllStdin,
     isInteractive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
     prompt: async (question, opts) => {

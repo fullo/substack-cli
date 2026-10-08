@@ -66,7 +66,11 @@ export class NoteStore {
       throw e;
     }
     try {
-      return NoteSchema.parse(JSON.parse(raw));
+      const note = NoteSchema.parse(JSON.parse(raw));
+      // Un file copiato o rinominato a mano porterebbe le transizioni su un altro file (path(note.id)):
+      // la stessa nota comparirebbe due volte in coda e run-due si fermerebbe sul duplicato.
+      if (note.id !== id) throw new Error('id diverso dal nome del file');
+      return note;
     } catch {
       throw new StateError(`File nota corrotto o modificato in modo non valido: ${path}`);
     }
