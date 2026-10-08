@@ -1,8 +1,10 @@
-// Caratteri non ammessi nel testo pubblicato: controlli C0 (tranne tab, a capo e CR), DEL,
-// segni/override/isolati di direzione (U+061C, U+200E/F, U+202A-202E, U+2066-2069),
-// caratteri a larghezza zero (U+200B-200D), separatori di riga/paragrafo (U+2028/2029) e BOM (U+FEFF).
+// Caratteri non ammessi nel testo pubblicato: controlli C0 (tranne tab, a capo e CR), DEL e controlli C1
+// (U+0080-009F, es. CSI U+009B), soft hyphen (U+00AD), segni/override/isolati di direzione (U+061C,
+// U+200E/F, U+202A-202E, U+2066-2069), caratteri invisibili di formato (U+180E, U+200B-200D, U+2060-2064),
+// separatori di riga/paragrafo (U+2028/2029), BOM (U+FEFF), annotazioni interlineari (U+FFF9-FFFB) e
+// caratteri tag Unicode (U+E0000-E007F, testo invisibile). Il flag u serve per i tag (fuori dal BMP).
 export const FORBIDDEN_TEXT_CHARS =
-  /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u061C\u200B-\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069\uFEFF]/;
+  /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u00AD\u061C\u180E\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF\uFFF9-\uFFFB\u{E0000}-\u{E007F}]/u;
 
 export function hasForbiddenChars(text: string): boolean {
   return FORBIDDEN_TEXT_CHARS.test(text);

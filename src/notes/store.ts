@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { markdownToDoc } from '../markdown/prosemirror.ts';
 import { StateError, UsageError } from '../util/errors.ts';
 import { atomicWriteFile, withLock } from '../util/fs.ts';
+import { hasForbiddenChars } from '../util/text.ts';
 
 const STATUSES = ['draft', 'scheduled', 'publishing', 'published', 'failed'] as const;
 export type NoteStatus = (typeof STATUSES)[number];
@@ -12,7 +13,8 @@ export type NoteStatus = (typeof STATUSES)[number];
 const NoteSchema = z
   .object({
     id: z.string().regex(/^[0-9a-f]{12}$/),
-    text: z.string().min(1).max(5000),
+    // Rivalidato a ogni lettura: un file modificato a mano non deve portare caratteri invisibili o di controllo.
+    text: z.string().min(1).max(5000).refine((v) => !hasForbiddenChars(v)),
     status: z.enum(STATUSES),
     createdAt: z.string(),
     publishAt: z.string().optional(),
