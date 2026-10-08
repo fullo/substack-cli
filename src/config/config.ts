@@ -14,24 +14,41 @@ export function dataDir(env: NodeJS.ProcessEnv): string {
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
-function isSafeSubstackBase(value: string): boolean {
+function parseUrl(value: string): URL | undefined {
   try {
-    const url = new URL(value);
-    return url.protocol === 'https:' || (url.protocol === 'http:' && LOCAL_HOSTS.has(url.hostname));
+    return new URL(value);
   } catch {
-    return false;
+    return undefined;
   }
+}
+
+// Il cookie di sessione viene inviato a questo host: solo Substack (https) o loopback (http, test).
+function isSafeSubstackBase(value: string): boolean {
+  const url = parseUrl(value);
+  if (!url || url.username !== '' || url.password !== '') return false;
+  const host = url.hostname.toLowerCase();
+  if (url.protocol === 'https:') return host === 'substack.com' || host.endsWith('.substack.com');
+  return url.protocol === 'http:' && LOCAL_HOSTS.has(host);
+}
+
+// Endpoint LLM (llama.cpp/Ollama anche su host di rete locale): solo http/https, niente credenziali nell'URL.
+function isSafeLlmBase(value: string): boolean {
+  const url = parseUrl(value);
+  return !!url && (url.protocol === 'http:' || url.protocol === 'https:') && url.username === '' && url.password === '';
 }
 
 const ConfigSchema = z
   .object({
     publication: z.string().regex(/^[a-z0-9][a-z0-9-]{0,62}$/, 'subdomain non valido').optional(),
-    baseUrl: z.string().refine(isSafeSubstackBase, 'baseUrl deve essere https (http solo su localhost)').optional(),
+    baseUrl: z
+      .string()
+      .refine(isSafeSubstackBase, 'baseUrl deve essere https://substack.com o https://*.substack.com (http solo su localhost), senza credenziali')
+      .optional(),
     generate: z
       .object({
         provider: z.enum(['anthropic', 'openai-compat']).default('anthropic'),
         model: z.string().min(1).default('claude-sonnet-5-5'),
-        baseUrl: z.string().url().optional(),
+        baseUrl: z.string().refine(isSafeLlmBase, 'generate.baseUrl deve essere un URL http o https senza credenziali').optional(),
         maxTokens: z.number().int().min(1).max(64000).default(4096),
         timeoutMs: z.number().int().min(1000).max(600000).default(120000),
       })
