@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { readTextIfExists } from '../util/fs.ts';
 import { UsageError } from '../util/errors.ts';
+import { formatIssues } from '../util/issues.ts';
 
 export function configDir(env: NodeJS.ProcessEnv): string {
   return env.SUBSTACK_CLI_CONFIG_DIR ?? join(homedir(), '.config', 'substack-cli');
@@ -93,8 +94,7 @@ export async function loadConfig(env: NodeJS.ProcessEnv): Promise<Config> {
 export function validateConfig(raw: unknown): Config {
   const parsed = ConfigSchema.safeParse(raw);
   if (!parsed.success) {
-    const issues = parsed.error.issues.map((i) => `${i.path.join('.') || '(radice)'}: ${i.message}`).join('; ');
-    throw new UsageError(`Configurazione non valida: ${issues}`);
+    throw new UsageError(`Configurazione non valida: ${formatIssues(parsed.error.issues)}`);
   }
   return parsed.data;
 }

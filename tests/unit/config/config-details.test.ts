@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { configDir, dataDir, globalUrl, loadConfig, publicationUrl } from '../../../src/config/config.ts';
+import { configDir, dataDir, globalUrl, loadConfig, publicationUrl, validateConfig } from '../../../src/config/config.ts';
 import { UsageError } from '../../../src/util/errors.ts';
 import { withTmpDir } from '../../helpers/tmp.ts';
 
@@ -115,4 +115,10 @@ test('publicationUrl/globalUrl: toglie tutte le barre finali; messaggio senza pu
   assert.equal(globalUrl({ ...base }), 'https://substack.com');
   assert.throws(() => publicationUrl({ ...base }), (e: unknown) => e instanceof UsageError &&
     e.message === 'Pubblicazione non configurata: esegui "substack config init --publication <subdomain>"');
+});
+
+test('validateConfig: chiavi sconosciute elencate in modo troncato', () => {
+  const raw = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`x${i}`, 1]));
+  assert.throws(() => validateConfig(raw), (e: unknown) =>
+    e instanceof UsageError && e.message === 'Configurazione non valida: (radice): chiavi non ammesse: x0, x1, x2, x3, x4 (e altre 7)');
 });

@@ -1,9 +1,14 @@
 import { parse } from 'yaml';
 import { z } from 'zod';
 import { UsageError } from '../util/errors.ts';
+import { formatIssues } from '../util/issues.ts';
 import { isSafeSingleLine } from '../util/text.ts';
 import { markdownToDoc } from './prosemirror.ts';
 import type { PMDoc } from './prosemirror.ts';
+
+// Il front-matter ammette solo title e subtitle: 8 KB bastano. Il parser YAML ha costi superlineari
+// con molte chiavi (decine di secondi con 50k chiavi), quindi il limite va applicato prima di parse.
+export const MAX_FRONT_MATTER_BYTES = 8192;
 
 const SINGLE_LINE_MSG = 'deve stare su una riga, senza caratteri di controllo, di direzione o invisibili';
 
@@ -33,6 +38,9 @@ export function parseArticle(source: string): ParsedArticle {
     throw new UsageError('Front-matter non chiuso: manca la riga "---" di chiusura');
   }
   const yamlText = text.slice(4, end);
+  if (Buffer.byteLength(yamlText, 'utf8') > MAX_FRONT_MATTER_BYTES) {
+    throw new UsageError('Front-matter troppo grande (max 8 KB): ammessi solo title e subtitle');
+  }
   let data: unknown;
   try {
     // logLevel 'error': gli avvisi della libreria andrebbero su stderr via process.emitWarning,
@@ -43,10 +51,7 @@ export function parseArticle(source: string): ParsedArticle {
   }
   const parsed = FrontMatterSchema.safeParse(data ?? {});
   if (!parsed.success) {
-    const issues = parsed.error.issues
-      .map((i) => `${i.path.join('.') || '(radice)'}: ${i.message}`)
-      .join('; ');
-    throw new UsageError(`Front-matter non valido: ${issues}`);
+    throw new UsageError(`Front-matter non valido: ${formatIssues(parsed.error.issues)}`);
   }
   const body = (afterFence ?? '').replace(/^\n/, '');
   return { frontMatter: parsed.data, doc: markdownToDoc(body) };
