@@ -1,5 +1,5 @@
-import { marked } from 'marked';
-import type { Token, Tokens } from 'marked';
+import { Lexer, Tokenizer, getDefaults } from 'marked';
+import type { Links, Token, Tokens } from 'marked';
 import { UsageError } from '../util/errors.ts';
 
 export interface PMMark { type: string; attrs?: Record<string, unknown> }
@@ -30,7 +30,11 @@ const NODE = {
 };
 
 const MAX_DEPTH = 20;
-const MAX_INPUT = 1_000_000;
+const MAX_INPUT_BYTES = 300_000;
+// Budget di lavoro del tokenizer inline di marked, in caratteri esaminati (vedi GuardedTokenizer).
+const INLINE_WORK_BUDGET = 3_000_000;
+// Annidamento massimo di costrutti ricorsivi durante il lexing (oltre MAX_DEPTH comunque rifiutato dopo).
+const MAX_LEX_DEPTH = MAX_DEPTH + 5;
 const LINK_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
 const IMAGE_SCHEMES = new Set(['https:']);
 const FORBIDDEN_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F‪-‮⁦-⁩]/;
@@ -165,14 +169,115 @@ function blocks(tokens: Token[], depth: number): PMNode[] {
   return out;
 }
 
+// Caratteri su cui la regex "inlineText" di marked fa un lookahead (autolink email) che scorre
+// l'intera sequenza contigua di questi caratteri.
+const EMAIL_RUN = /[a-zA-Z0-9.!#$%&'*+/=?_`{|}~-]*/y;
+
+/**
+ * Il tokenizer inline di marked 18 è quadratico su delimitatori non chiusi (`*a *a ...`,
+ * `_a_a...`, `~~a ...`) e su sequenze come `!!!!` (lookahead dell'autolink email ripetuto a ogni
+ * token). Questo tokenizer conta un limite superiore del lavoro svolto da quelle regex (caratteri
+ * scansionati) e interrompe la conversione con UsageError quando supera INLINE_WORK_BUDGET.
+ * Il conteggio è deterministico: non dipende dalla velocità della macchina.
+ */
+class GuardedTokenizer extends Tokenizer {
+  work = 0;
+  private depth = 0;
+
+  private charge(amount: number): void {
+    this.work += amount;
+    if (this.work > INLINE_WORK_BUDGET) {
+      throw new UsageError(
+        'Markdown troppo complesso da elaborare (troppi delimitatori *, _, ~ o ! non chiusi): semplifica il testo',
+      );
+    }
+  }
+
+  // Costrutti che ri-tokenizzano ricorsivamente il proprio contenuto: ogni livello costa O(n),
+  // quindi l'annidamento va fermato PRIMA di scendere (non dopo, quando il lavoro è già fatto).
+  private nested<T>(run: () => T): T {
+    if (++this.depth > MAX_LEX_DEPTH) throw new UsageError('Markdown troppo annidato');
+    try {
+      return run();
+    } finally {
+      this.depth--;
+    }
+  }
+
+  override blockquote(src: string): Tokens.Blockquote | undefined {
+    return this.nested(() => super.blockquote(src));
+  }
+
+  override list(src: string): Tokens.List | undefined {
+    return this.nested(() => super.list(src));
+  }
+
+  override link(src: string): Tokens.Link | Tokens.Image | undefined {
+    return this.nested(() => super.link(src));
+  }
+
+  override reflink(src: string, links: Links): Tokens.Link | Tokens.Image | Tokens.Text | undefined {
+    return this.nested(() => super.reflink(src, links));
+  }
+
+  // Vero se marked, non trovando la chiusura, ha scansionato tutto il resto del testo: replica le
+  // condizioni iniziali di Tokenizer.emStrong/del (marked 18.1.0, versione bloccata in package.json).
+  private canPunctuate(prevChar: string): boolean {
+    return prevChar === '' || this.rules.inline.punctuation.test(prevChar);
+  }
+
+  private emStrongScans(src: string, prevChar: string): boolean {
+    const m = this.rules.inline.emStrongLDelim.exec(src);
+    if (!m || (!m[1] && !m[2] && !m[3] && !m[4])) return false;
+    if (m[4] && this.rules.other.unicodeAlphaNumeric.test(prevChar)) return false;
+    return !(m[1] || m[3]) || this.canPunctuate(prevChar);
+  }
+
+  private delScans(src: string, prevChar: string): boolean {
+    const m = this.rules.inline.delLDelim.exec(src);
+    if (!m) return false;
+    return !m[1] || this.canPunctuate(prevChar);
+  }
+
+  override emStrong(src: string, maskedSrc: string, prevChar = ''): Tokens.Em | Tokens.Strong | undefined {
+    const token = this.nested(() => super.emStrong(src, maskedSrc, prevChar));
+    if (token) this.charge(token.raw.length);
+    else if (this.emStrongScans(src, prevChar)) this.charge(src.length);
+    return token;
+  }
+
+  override del(src: string, maskedSrc: string, prevChar = ''): Tokens.Del | undefined {
+    const token = this.nested(() => super.del(src, maskedSrc, prevChar));
+    if (token) this.charge(token.raw.length);
+    else if (this.delScans(src, prevChar)) this.charge(src.length);
+    return token;
+  }
+
+  override inlineText(src: string): Tokens.Text | undefined {
+    EMAIL_RUN.lastIndex = 0;
+    EMAIL_RUN.test(src);
+    this.charge(EMAIL_RUN.lastIndex);
+    const token = super.inlineText(src);
+    if (token) this.charge(token.raw.length);
+    return token;
+  }
+}
+
+function lex(markdown: string): Token[] {
+  const tokenizer = new GuardedTokenizer();
+  return new Lexer({ ...getDefaults(), gfm: true, tokenizer }).lex(markdown);
+}
+
 export function markdownToDoc(markdown: string): PMDoc {
-  if (markdown.length > MAX_INPUT) throw new UsageError('Contenuto troppo grande (max 1 MB)');
+  if (Buffer.byteLength(markdown, 'utf8') > MAX_INPUT_BYTES) {
+    throw new UsageError('Contenuto troppo grande (max 300 KB)');
+  }
   if (FORBIDDEN_CHARS.test(markdown)) {
     throw new UsageError('Il testo contiene caratteri di controllo o di direzione non ammessi');
   }
   let content: PMNode[];
   try {
-    content = blocks(marked.lexer(markdown, { gfm: true }), 0);
+    content = blocks(lex(markdown), 0);
   } catch (e) {
     if (e instanceof UsageError) throw e;
     // Qualsiasi altro errore (es. RangeError da ricorsione profonda nel lexer) diventa un errore d'uso.
