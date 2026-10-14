@@ -97,3 +97,18 @@ Data di compilazione: ____-__-__
 - [ ] `draft_subtitle` da solo — NON CONFERMATO (stesso endpoint e stessa forma del titolo: atteso funzionante, non ancora provato)
 - [ ] `draft_body` (sostituzione del corpo con `--file`) — NON CONFERMATO: provarlo prima su una bozza di prova, perché sovrascrive il contenuto
 - [x] Forma della risposta: stato 2xx; il client non la usa e rilegge la bozza con GET, che ha restituito il titolo aggiornato — CONFERMATO
+
+## 10. Immagini e copertina (`image upload`, `--cover`)
+
+- [ ] Data verifica: ____-__-__ — NON CONFERMATO
+- [ ] Caricamento: metodo POST, percorso `https://<subdomain>.substack.com/api/v1/image`, corpo JSON `{ "image": "data:<mime>;base64,..." }` — NON CONFERMATO. Le librerie non ufficiali inviano lo stesso campo come form-urlencoded: se il JSON viene rifiutato è la prima variante da provare
+- [ ] Caricamento: forma della risposta (attesa: oggetto con `url` https sul CDN di Substack) — NON CONFERMATO
+- [ ] Copertina: `PUT https://<subdomain>.substack.com/api/v1/drafts/<id>` con `{ "cover_image": "<url>" }`, aggiornamento parziale come per `draft_title` — NON CONFERMATO
+- [ ] Copertina: la rilettura della bozza (`GET /api/v1/drafts/<id>`) riporta `cover_image` uguale all'URL inviato — NON CONFERMATO
+- [ ] Copertina visibile nell'editor web e nell'anteprima di condivisione — NON CONFERMATO
+
+Procedura (solo con ok esplicito dell'utente, su una bozza di prova mai pubblicata):
+
+1. `substack image upload prova.png --json`: il caricamento non pubblica nulla e non è visibile agli iscritti.
+2. `substack article update <id-prova> --cover <url> --dry-run`, poi senza `--dry-run`; controllo nell'editor web.
+3. `substack article draft prova.md --cover prova.png`, poi cancellare la bozza dall'editor web.

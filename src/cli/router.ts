@@ -9,12 +9,13 @@ import { articleCommands } from './commands/article.ts';
 import { authCommands } from './commands/auth.ts';
 import { configCommands } from './commands/config.ts';
 import { generateCommands } from './commands/generate.ts';
+import { imageCommands } from './commands/image.ts';
 import { noteCommands } from './commands/note.ts';
 import type { Ctx } from './context.ts';
 import type { Command, Values } from './shared.ts';
 
 const COMMANDS: Command[] = [
-  ...authCommands, ...articleCommands, ...noteCommands, ...generateCommands, ...configCommands,
+  ...authCommands, ...articleCommands, ...imageCommands, ...noteCommands, ...generateCommands, ...configCommands,
 ];
 
 export function helpText(): string {

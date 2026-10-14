@@ -2,7 +2,10 @@ import { parseArticle, parseSubtitle, parseTitle } from '../../markdown/frontmat
 import { parseDraftId } from '../../substack/client.ts';
 import type { DraftPatch } from '../../substack/client.ts';
 import { parseFutureInstant } from '../../util/clock.ts';
-import { ApiShapeError, UsageError } from '../../util/errors.ts';
+import { ApiShapeError, CliError, UsageError } from '../../util/errors.ts';
+import { isImageUrl, parseImageUrl, readImageFile } from '../../util/image.ts';
+import type { ImageFile } from '../../util/image.ts';
+import type { SubstackClient } from '../../substack/client.ts';
 import { t } from '../../util/i18n.ts';
 import { emit, flag, makeClient, readSource, str } from '../shared.ts';
 import type { Command } from '../shared.ts';
@@ -17,29 +20,64 @@ async function confirmByTyping(ctx: Ctx, word: string, cancelled: string): Promi
   if (answer.trim().toLowerCase() !== word) throw new UsageError(cancelled);
 }
 
+/** Copertina richiesta con --cover: un URL https già caricato oppure un file locale da caricare. */
+type CoverSource = { kind: 'url'; url: string; label: string } | { kind: 'file'; img: ImageFile; label: string };
+
+/** Valida --cover senza toccare la rete: URL https senza credenziali, oppure immagine locale leggibile e supportata. */
+async function parseCover(value: string): Promise<CoverSource> {
+  if (isImageUrl(value)) return { kind: 'url', url: parseImageUrl(value), label: value };
+  return { kind: 'file', img: await readImageFile(value), label: value };
+}
+
+async function coverUrl(client: SubstackClient, cover: CoverSource): Promise<string> {
+  return cover.kind === 'url' ? cover.url : (await client.uploadImage(cover.img)).url;
+}
+
 export const articleCommands: Command[] = [
   {
     path: 'article draft',
     summary: { en: 'Create an online draft from a Markdown file (or - for stdin)', it: 'Crea una bozza online da un file Markdown (o - per stdin)' },
-    options: { 'dry-run': { type: 'boolean' } },
+    options: { 'dry-run': { type: 'boolean' }, cover: { type: 'string' } },
     async run(ctx, { values, positionals }) {
       const source = positionals[0];
-      if (!source) throw new UsageError(t('Usage: substack article draft <file|-> [--dry-run]', 'Uso: substack article draft <file|-> [--dry-run]'));
+      if (!source) throw new UsageError(t('Usage: substack article draft <file|-> [--cover <file|url>] [--dry-run]', 'Uso: substack article draft <file|-> [--cover <file|url>] [--dry-run]'));
       const { frontMatter, doc } = parseArticle(await readSource(ctx, source));
+      const coverArg = str(values, 'cover');
+      const cover = coverArg === undefined ? undefined : await parseCover(coverArg);
       if (flag(values, 'dry-run')) {
         emit(ctx, values,
-          { dryRun: true, title: frontMatter.title, subtitle: frontMatter.subtitle ?? null, blocks: doc.content.length },
-          t(`[dry-run] Draft "${frontMatter.title}" (${doc.content.length} blocks): no request sent`,
-            `[dry-run] Bozza "${frontMatter.title}" (${doc.content.length} blocchi): nessuna richiesta inviata`));
+          { dryRun: true, title: frontMatter.title, subtitle: frontMatter.subtitle ?? null, blocks: doc.content.length, cover: cover?.label ?? null },
+          t(`[dry-run] Draft "${frontMatter.title}" (${doc.content.length} blocks${cover ? `, cover ${cover.label}` : ''}): no request sent`,
+            `[dry-run] Bozza "${frontMatter.title}" (${doc.content.length} blocchi${cover ? `, copertina ${cover.label}` : ''}): nessuna richiesta inviata`));
         return 0;
       }
       const client = await makeClient(ctx);
+      // L'immagine si carica prima di creare la bozza: se il caricamento fallisce non resta una bozza orfana.
+      const coverImage = cover ? await coverUrl(client, cover) : undefined;
       const profile = await client.getProfile();
       const draft = await client.createDraft({
         title: frontMatter.title, subtitle: frontMatter.subtitle, body: doc, authorId: profile.id,
       });
-      emit(ctx, values, { id: draft.id, url: draft.url },
-        t(`Draft created: id ${draft.id}\nEdit: ${draft.url}`, `Bozza creata: id ${draft.id}\nModifica: ${draft.url}`));
+      if (coverImage !== undefined) {
+        try {
+          await client.updateDraft(draft.id, { coverImage });
+          const after = await client.getDraft(draft.id);
+          if ((after.cover_image ?? '') !== coverImage) {
+            throw new ApiShapeError(t('the draft does not show the cover after the update', 'la bozza non riporta la copertina dopo l\'aggiornamento'));
+          }
+        } catch (e) {
+          // La bozza esiste già: il messaggio dà id, URL e il comando per ripetere solo la copertina,
+          // mantenendo il codice d'uscita dell'errore originale (es. 2 cookie, 4 rete).
+          const reason = e instanceof Error ? e.message : String(e);
+          throw new CliError(
+            t(`Draft created (id ${draft.id}, ${draft.url}) but the cover was not set: ${reason}. Retry with: substack article update ${draft.id} --cover ${coverImage}`,
+              `Bozza creata (id ${draft.id}, ${draft.url}) ma copertina non impostata: ${reason}. Riprova con: substack article update ${draft.id} --cover ${coverImage}`),
+            e instanceof CliError ? e.exitCode : 1, e instanceof CliError ? e.code : 'INTERNAL');
+        }
+      }
+      emit(ctx, values, { id: draft.id, url: draft.url, coverImage: coverImage ?? null },
+        t(`Draft created: id ${draft.id}\nEdit: ${draft.url}${coverImage ? `\nCover: ${coverImage}` : ''}`,
+          `Bozza creata: id ${draft.id}\nModifica: ${draft.url}${coverImage ? `\nCopertina: ${coverImage}` : ''}`));
       return 0;
     },
   },
@@ -61,7 +99,7 @@ export const articleCommands: Command[] = [
       it: 'Aggiorna titolo (--title), sottotitolo (--subtitle) e/o corpo (--file <file|->) di una bozza non pubblicata (richiede conferma o --yes)',
     },
     options: {
-      title: { type: 'string' }, subtitle: { type: 'string' }, file: { type: 'string' },
+      title: { type: 'string' }, subtitle: { type: 'string' }, file: { type: 'string' }, cover: { type: 'string' },
       yes: { type: 'boolean' }, 'dry-run': { type: 'boolean' },
     },
     async run(ctx, { values, positionals }) {
@@ -69,10 +107,12 @@ export const articleCommands: Command[] = [
       const title = str(values, 'title');
       const subtitle = str(values, 'subtitle');
       const file = str(values, 'file');
-      if (title === undefined && subtitle === undefined && file === undefined) {
-        throw new UsageError(t('Usage: substack article update <id> [--title <text>] [--subtitle <text>] [--file <file|->] [--yes] [--dry-run]',
-          'Uso: substack article update <id> [--title <testo>] [--subtitle <testo>] [--file <file|->] [--yes] [--dry-run]'));
+      const coverArg = str(values, 'cover');
+      if (title === undefined && subtitle === undefined && file === undefined && coverArg === undefined) {
+        throw new UsageError(t('Usage: substack article update <id> [--title <text>] [--subtitle <text>] [--file <file|->] [--cover <file|url>] [--yes] [--dry-run]',
+          'Uso: substack article update <id> [--title <testo>] [--subtitle <testo>] [--file <file|->] [--cover <file|url>] [--yes] [--dry-run]'));
       }
+      let cover = coverArg === undefined ? undefined : await parseCover(coverArg);
       // Validazione completa prima di qualsiasi richiesta di rete.
       const patch: DraftPatch = {};
       let blocks: number | undefined;
@@ -107,7 +147,16 @@ export const articleCommands: Command[] = [
       if (patch.title !== undefined) changes.push(`${t('title', 'titolo')}: "${oldTitle}" → "${patch.title}"`);
       if (patch.subtitle !== undefined) changes.push(`${t('subtitle', 'sottotitolo')}: "${oldSubtitle}" → "${patch.subtitle}"`);
       if (patch.body !== undefined) changes.push(t(`body: replaced (${blocks} blocks)`, `corpo: sostituito (${blocks} blocchi)`));
-      const changed = { title: patch.title !== undefined, subtitle: patch.subtitle !== undefined, body: patch.body !== undefined };
+      // Una copertina già uguale a quella richiesta non conta come modifica.
+      if (cover?.kind === 'url' && (draft.cover_image ?? '') === cover.url) cover = undefined;
+      if (cover !== undefined) {
+        changes.push(cover.kind === 'file'
+          ? t(`cover: set from file ${cover.label} (uploaded on confirmation)`, `copertina: impostata dal file ${cover.label} (caricato dopo la conferma)`)
+          : t(`cover: set to ${cover.url}`, `copertina: impostata a ${cover.url}`));
+      }
+      // La chiave cover compare solo se --cover è stato usato: l'output JSON esistente resta invariato.
+      const changed = { title: patch.title !== undefined, subtitle: patch.subtitle !== undefined, body: patch.body !== undefined,
+        ...(coverArg !== undefined ? { cover: cover !== undefined } : {}) };
 
       if (changes.length === 0) {
         emit(ctx, values, { id, updated: false, changed },
@@ -125,10 +174,13 @@ export const articleCommands: Command[] = [
         ctx.err(summary);
         await confirmByTyping(ctx, t('update', 'aggiorna'), t('Update cancelled', 'Aggiornamento annullato'));
       }
+      // Il file della copertina si carica solo dopo la conferma: un annullamento non lascia immagini caricate.
+      if (cover !== undefined) patch.coverImage = await coverUrl(client, cover);
       await client.updateDraft(id, patch);
       // L'endpoint di aggiornamento non è ancora confermato: si rilegge la bozza per verificare l'esito.
       const after = await client.getDraft(id);
       const missing: string[] = [];
+      if (patch.coverImage !== undefined && (after.cover_image ?? '') !== patch.coverImage) missing.push(t('cover', 'copertina'));
       if (patch.title !== undefined && (after.draft_title ?? '') !== patch.title) missing.push(t('title', 'titolo'));
       if (patch.subtitle !== undefined && (after.draft_subtitle ?? '') !== patch.subtitle) missing.push(t('subtitle', 'sottotitolo'));
       if (missing.length > 0) {
@@ -137,7 +189,7 @@ export const articleCommands: Command[] = [
             `Substack ha accettato la richiesta ma la bozza ${id} non risulta aggiornata (${missing.join(', ')}): l'API potrebbe essere cambiata`),
         );
       }
-      emit(ctx, values, { id, updated: true, changed, title: after.draft_title ?? '', subtitle: after.draft_subtitle ?? '' },
+      emit(ctx, values, { id, updated: true, changed, title: after.draft_title ?? '', subtitle: after.draft_subtitle ?? '', ...(coverArg !== undefined ? { coverImage: after.cover_image ?? null } : {}) },
         // Con la conferma interattiva il riepilogo è già stato mostrato: non ripeterlo.
         confirmInteractively ? t(`Draft ${id} updated`, `Bozza ${id} aggiornata`) : `${summary}\n${t(`Draft ${id} updated`, `Bozza ${id} aggiornata`)}`);
       return 0;

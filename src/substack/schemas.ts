@@ -17,10 +17,13 @@ export const DraftSchema = z
     draft_subtitle: z.string().nullable().optional(),
     audience: z.string().nullable().optional(),
     is_published: z.boolean().nullable().optional(),
+    cover_image: z.string().nullable().optional(),
   })
   .passthrough();
 
 export const DraftListSchema = z.object({ posts: z.array(DraftSchema) }).passthrough();
+
+export const ImageUploadedSchema = z.object({ url: z.string().url() }).passthrough();
 
 export const NoteCreatedSchema = z.object({ id: z.union([z.number().int(), z.string().min(1)]) }).passthrough();
 
