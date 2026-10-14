@@ -21,14 +21,14 @@ function setup(answer: string) {
 
 test('article schedule interattivo: riepilogo (titolo, data, email) e conferma con "schedule"', async () => {
   const { ctx, calls, questions } = setup(' Schedule \n');
-  const code = await run(['article', 'schedule', '7', '--at', '2026-10-09T09:00:00+02:00', '--send-email'], ctx);
+  const code = await run(['article', 'schedule', '7', '--at', '2026-10-09T09:00:00+02:00', '--email', 'only_free'], ctx);
   assert.equal(code, 0, ctx.stderr.join('\n'));
   assert.equal(questions.length, 1);
   assert.match(questions[0]!, /"schedule"/);
   const summary = ctx.stderr.join('\n');
   assert.match(summary, /Il mio pezzo/);
   assert.match(summary, /2026-10-09T07:00:00\.000Z/);
-  assert.match(summary, /email to subscribers: YES/);
+  assert.match(summary, /email to: only_free/);
   assert.equal(calls.filter((c) => c.url.endsWith('/scheduled_release')).length, 1);
 });
 
@@ -37,7 +37,8 @@ test('article schedule interattivo: risposta diversa da "schedule" annulla senza
     const { ctx, calls } = setup(answer);
     const code = await run(['article', 'schedule', '7', '--at', '2026-10-09T09:00:00+02:00'], ctx);
     assert.equal(code, 64, answer);
-    assert.match(ctx.stderr.join('\n'), /email to subscribers: no/);
+    // Senza --email il destinatario di default (tutti) è comunque mostrato prima della conferma.
+    assert.match(ctx.stderr.join('\n'), /email to: everyone/);
     assert.equal(calls.filter((c) => c.url.endsWith('/scheduled_release')).length, 0, answer);
   }
 });

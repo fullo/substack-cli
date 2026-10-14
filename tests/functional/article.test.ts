@@ -109,7 +109,13 @@ test('article schedule / cancel', async () => {
     assert.equal(ok.code, 0, ok.stderr);
     const sch = JSON.parse(server.requests.find((q) => q.path.endsWith('/scheduled_release'))!.body);
     assert.equal(sch.trigger_at, '2026-10-09T07:00:00.000Z');
-    assert.equal(sch.email_audience, 'no_one');
+    assert.equal(sch.email_audience, 'everyone');
+    assert.equal((await sb.run(['article', 'schedule', '1001', '--at', '2026-10-09T09:00:00+02:00', '--yes', '--email', 'only_paid'], { env })).code, 0);
+    assert.equal(JSON.parse(server.requests.filter((q) => q.path.endsWith('/scheduled_release')).at(-1)!.body).email_audience, 'only_paid');
+    const before = server.requests.length;
+    assert.equal((await sb.run(['article', 'schedule', '1001', '--at', '2026-10-09T09:00:00+02:00', '--yes', '--email', 'no_one'], { env })).code, 64);
+    assert.equal((await sb.run(['article', 'schedule', '1001', '--cancel', '--email', 'everyone'], { env })).code, 64);
+    assert.equal(server.requests.length, before);
     assert.equal((await sb.run(['article', 'schedule', '1001', '--at', '2026-10-07T09:00:00Z'], { env })).code, 64);
     assert.equal((await sb.run(['article', 'schedule', '1001', '--at', '2026-10-09T09:00:00'], { env })).code, 64);
     assert.equal((await sb.run(['article', 'schedule', '1001'], { env })).code, 64);

@@ -276,7 +276,7 @@ test('publish/schedule/cancel: metodo, corpi completi, retry solo su cancelSched
   assert.equal(calls[0]!.init.method, 'POST');
   assert.equal(header(calls[0]!, 'content-type'), 'application/json');
   assert.deepEqual(body(calls[0]!), { send: true, share_automatically: false });
-  await c.scheduleDraft(6, new Date('2026-10-09T07:00:00Z'), { sendEmail: true });
+  await c.scheduleDraft(6, new Date('2026-10-09T07:00:00Z'), { emailAudience: 'everyone' });
   assert.equal(calls[1]!.init.method, 'POST');
   assert.deepEqual(body(calls[1]!), { trigger_at: '2026-10-09T07:00:00.000Z', post_audience: 'everyone', email_audience: 'everyone' });
   await c.cancelSchedule(7);
@@ -288,7 +288,7 @@ test('publish/schedule/cancel: metodo, corpi completi, retry solo su cancelSched
   await client(() => (++n < 3 ? json({}, 503) : json({}))).cancelSchedule(7);
   assert.equal(n, 3);
   let m = 0;
-  await assert.rejects(client(() => { m++; return json({}, 503); }).scheduleDraft(1, new Date(), { sendEmail: false }));
+  await assert.rejects(client(() => { m++; return json({}, 503); }).scheduleDraft(1, new Date(), { emailAudience: 'everyone' }));
   assert.equal(m, 1);
 });
 

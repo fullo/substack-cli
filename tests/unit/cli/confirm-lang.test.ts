@@ -47,7 +47,7 @@ test('conferme di schedulazione e aggiornamento in italiano: programma / aggiorn
   const sch = setup('programma', 'it');
   assert.equal(await run(['article', 'schedule', '7', '--at', '2999-01-01T00:00:00Z'], sch.ctx), 0, sch.ctx.stderr.join('\n'));
   assert.match(sch.questions[0]!, /"programma"/);
-  assert.match(sch.ctx.stderr.join('\n'), /email agli iscritti: no/);
+  assert.match(sch.ctx.stderr.join('\n'), /email a: everyone/);
 
   const upd = setup('aggiorna', 'it');
   assert.equal(await run(['article', 'update', '7', '--title', 'Il mio pezzo', '--subtitle', 'Nuovo'], upd.ctx), 3);
