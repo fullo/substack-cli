@@ -170,3 +170,25 @@ test('parseDraftId accetta solo interi positivi (no path traversal)', () => {
     assert.throws(() => parseDraftId(bad), UsageError, String(bad));
   }
 });
+
+test('updateDraft: PUT su /api/v1/drafts/{id} con i soli campi indicati, corpo serializzato come stringa JSON', async () => {
+  const calls: Call[] = [];
+  const c = client(() => json({ id: 7 }), calls);
+  await c.updateDraft(7, { title: 'Nuovo' });
+  await c.updateDraft(7, { subtitle: '', body: { type: 'doc', content: [] } });
+  assert.equal(calls[0]!.url, `${PUB}/api/v1/drafts/7`);
+  assert.equal(calls[0]!.init.method, 'PUT');
+  assert.equal(header(calls[0]!, 'content-type'), 'application/json');
+  assert.deepEqual(JSON.parse(String(calls[0]!.init.body)), { draft_title: 'Nuovo' });
+  assert.deepEqual(JSON.parse(String(calls[1]!.init.body)), { draft_subtitle: '', draft_body: '{"type":"doc","content":[]}' });
+});
+
+test('updateDraft: patch vuota → UsageError senza richieste; errori di rete riprovati (PUT idempotente)', async () => {
+  const calls: Call[] = [];
+  await assert.rejects(client(() => json({}), calls).updateDraft(7, {}), UsageError);
+  assert.equal(calls.length, 0);
+  let n = 0;
+  const retried: Call[] = [];
+  await client(() => (++n < 3 ? json({}, 503) : json({ id: 7 })), retried).updateDraft(7, { title: 'x' });
+  assert.equal(retried.length, 3);
+});

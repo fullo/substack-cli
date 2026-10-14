@@ -12,12 +12,29 @@ export const MAX_FRONT_MATTER_BYTES = 8192;
 
 const SINGLE_LINE_MSG = 'deve stare su una riga, senza caratteri di controllo, di direzione o invisibili';
 
+const TitleSchema = z.string().min(1).max(300).refine(isSafeSingleLine, SINGLE_LINE_MSG);
+const SubtitleSchema = z.string().max(500).refine(isSafeSingleLine, SINGLE_LINE_MSG);
+
 const FrontMatterSchema = z
   .object({
-    title: z.string().min(1).max(300).refine(isSafeSingleLine, SINGLE_LINE_MSG),
-    subtitle: z.string().max(500).refine(isSafeSingleLine, SINGLE_LINE_MSG).optional(),
+    title: TitleSchema,
+    subtitle: SubtitleSchema.optional(),
   })
   .strict();
+
+/** Valida un titolo passato da riga di comando con le stesse regole del front-matter. */
+export function parseTitle(value: string): string {
+  const r = TitleSchema.safeParse(value);
+  if (!r.success) throw new UsageError(`Titolo non valido: ${formatIssues(r.error.issues)}`);
+  return r.data;
+}
+
+/** Valida un sottotitolo passato da riga di comando; la stringa vuota lo cancella. */
+export function parseSubtitle(value: string): string {
+  const r = SubtitleSchema.safeParse(value);
+  if (!r.success) throw new UsageError(`Sottotitolo non valido: ${formatIssues(r.error.issues)}`);
+  return r.data;
+}
 
 export type FrontMatter = z.infer<typeof FrontMatterSchema>;
 

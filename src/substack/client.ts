@@ -6,6 +6,7 @@
 //                   GET  /api/v1/post_management/drafts?offset&limit&order_by&order_direction
 //                   POST /api/v1/drafts/{id}/publish
 //                   POST /api/v1/drafts/{id}/scheduled_release
+//                   PUT  /api/v1/drafts/{id}   (NON CONFERMATO: aggiornamento bozza)
 import type { z } from 'zod';
 import type { PMDoc } from '../markdown/prosemirror.ts';
 import { ApiShapeError, AuthError, NetworkError, RateLimitError, UsageError } from '../util/errors.ts';
@@ -25,7 +26,9 @@ export interface ClientOptions {
   sleep?: (ms: number) => Promise<void>;
 }
 
-interface RequestInitLite { method: 'GET' | 'POST'; body?: unknown }
+interface RequestInitLite { method: 'GET' | 'POST' | 'PUT'; body?: unknown }
+
+export interface DraftPatch { title?: string; subtitle?: string; body?: PMDoc }
 
 export function parseDraftId(value: string | undefined): number {
   if (value === undefined || !/^[1-9][0-9]{0,14}$/.test(value)) {
@@ -168,6 +171,20 @@ export class SubstackClient {
 
   getDraft(id: number): Promise<Draft> {
     return this.request(this.publicationUrl, `/api/v1/drafts/${id}`, { method: 'GET' }, DraftSchema, true);
+  }
+
+  /**
+   * Aggiorna i campi indicati di una bozza esistente. Endpoint NON CONFERMATO (tests/fixtures/README.md, sezione 9):
+   * chi chiama deve rileggere la bozza per verificare che l'aggiornamento sia stato applicato.
+   * PUT è idempotente: lo stesso corpo inviato due volte produce lo stesso stato, quindi i retry sono sicuri.
+   */
+  async updateDraft(id: number, patch: DraftPatch): Promise<void> {
+    const body: Record<string, string> = {};
+    if (patch.title !== undefined) body.draft_title = patch.title;
+    if (patch.subtitle !== undefined) body.draft_subtitle = patch.subtitle;
+    if (patch.body !== undefined) body.draft_body = JSON.stringify(patch.body);
+    if (Object.keys(body).length === 0) throw new UsageError('Nessun campo da aggiornare');
+    await this.request(this.publicationUrl, `/api/v1/drafts/${id}`, { method: 'PUT', body }, AnySchema, true);
   }
 
   async listDrafts(limit = 25): Promise<Draft[]> {

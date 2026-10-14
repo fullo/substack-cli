@@ -102,6 +102,10 @@ substack article draft articolo.md              # crea la bozza online; stampa i
 substack article draft articolo.md --dry-run    # valida e converte senza chiamare Substack
 cat articolo.md | substack article draft -      # da stdin
 substack article list                           # bozze più recenti
+substack article update 123 --title "123 - Nuovo titolo"       # cambia solo il titolo: chiede conferma ("aggiorna")
+substack article update 123 --subtitle ""                      # cancella il sottotitolo
+substack article update 123 --file articolo.md --yes           # sostituisce corpo, titolo e sottotitolo dal file
+substack article update 123 --title "..." --dry-run            # mostra il prima/dopo senza modificare
 substack article publish 123                    # chiede conferma
 substack article publish 123 --yes              # pubblica senza email
 substack article publish 123 --yes --send-email # pubblica e invia l'email agli iscritti
@@ -113,6 +117,7 @@ substack article schedule 123 --cancel                          # annulla la sch
 
 ### Note
 
+- `article update` modifica solo bozze non pubblicate e invia solo i campi che cambiano. Con `--file` il file è la fonte completa (corpo, `title` e `subtitle` del front-matter); `--title` e `--subtitle` prevalgono sul file. Sostituire il corpo cancella le modifiche fatte nell'editor web. Dopo l'invio il comando rilegge la bozza e fallisce (exit 3) se titolo o sottotitolo non risultano aggiornati: l'endpoint `PUT /api/v1/drafts/<id>` non è ancora confermato (vedi `tests/fixtures/README.md`, sezione 9).
 Le note vivono in una coda locale; `notes run-due` pubblica quelle schedulate scadute.
 
 ```bash
