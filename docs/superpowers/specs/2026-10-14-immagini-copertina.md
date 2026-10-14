@@ -1,6 +1,6 @@
 # Immagini e copertina — Design
 
-Data: 2026-10-14 · Stato: bozza per revisione
+Data: 2026-10-14 · Stato: implementato; endpoint verificati il 2026-10-14
 
 ## 1. Obiettivo
 
@@ -18,7 +18,7 @@ Oggi il CLI accetta immagini solo come URL `https` in un paragrafo a sé del Mar
 - Didascalie e attributi avanzati delle immagini nel corpo.
 - Modifica della copertina di post già pubblicati.
 
-## 3. Endpoint (candidati, NON CONFERMATI)
+## 3. Endpoint (confermati il 2026-10-14, vedi tests/fixtures/README.md sezione 10)
 
 | Operazione | Metodo e percorso | Corpo | Risposta attesa |
 |---|---|---|---|
