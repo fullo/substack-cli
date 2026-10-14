@@ -15,11 +15,11 @@ CLI in Node/TypeScript per scrivere e pubblicare su Substack da terminale: bozze
 Node.js >= 22.18 (esegue direttamente i file `.ts` in sviluppo; il build produce JavaScript).
 
 ```bash
-npm ci
-npm run build
-npm i -g .          # installa il comando `substack`
+npm run setup       # npm ci + npm run build + npm link
 substack help
 ```
+
+`npm run setup` installa le dipendenze, compila e registra il comando `substack` con `npm link`: è un collegamento simbolico al repository, non una copia, quindi dopo ogni `npm run build` il comando usa già il codice aggiornato. `npm run build` da solo non tocca nulla fuori dal repository (lo usano anche il Dockerfile e i test). Se la cartella globale di npm non è scrivibile dal tuo utente (Node installato di sistema), `npm link` fallisce con `EACCES`: usa un gestore di versioni come nvm oppure imposta un prefisso nella tua home (`npm config set prefix ~/.npm-global` e aggiungi `~/.npm-global/bin` al `PATH`); evita `sudo`. Senza link il comando resta `node dist/cli/main.js`. Per rimuovere il comando: `npm unlink -g substack-cli`.
 
 ## 3. Configurazione
 

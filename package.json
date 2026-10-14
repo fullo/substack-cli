@@ -12,6 +12,7 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.build.json",
+    "setup": "npm ci && npm run build && npm link",
     "test": "node --test \"tests/unit/**/*.test.ts\" \"tests/security/**/*.test.ts\" \"tests/functional/**/*.test.ts\"",
     "test:unit": "node --test \"tests/unit/**/*.test.ts\"",
     "test:functional": "node --test \"tests/functional/**/*.test.ts\"",
