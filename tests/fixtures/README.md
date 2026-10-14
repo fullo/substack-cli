@@ -43,69 +43,13 @@ Data di compilazione: ____-__-__
 
 ## 5. Pubblicazione (solo ispezione del browser, non eseguire)
 
-- [ ] Data verifica: ____-__-__ — NON CONFERMATO
-- [ ] Metodo — NON CONFERMATO
-- [ ] Percorso — NON CONFERMATO
-- [ ] Corpo della richiesta (anonimizzato) — NON CONFERMATO
-- [ ] Forma della risposta — NON CONFERMATO
-
-## 6. Schedule / cancel schedule (solo ispezione del browser, non eseguire)
-
-- [x] Data verifica: 2026-10-09 — schedulazione CONFERMATA su Substack reale con una bozza di prova (poi cancellata dall'utente); cancel e publish NON CONFERMATI
-- [x] Schedule: metodo POST — CONFERMATO
-- [x] Schedule: percorso `https://<subdomain>.substack.com/api/v1/drafts/<id>/scheduled_release` — CONFERMATO
-- [x] Schedule: corpo della richiesta `{ "trigger_at": "<ISO 8601 UTC, es. 2026-10-10T19:00:00.000Z>", "post_audience": "everyone", "email_audience": "founding" }` — CONFERMATO (stato 200)
-- [x] Schedule: **valori ammessi per `email_audience`**: `everyone`, `founding`, `only_paid`, `only_free` (verificati con una sonda che non può programmare nulla: data volutamente non valida). `null` e assente passano la validazione. **Rifiutati con 400 «Invalid value»**: `no_one`, `none`, `nobody`, `off`, `disabled`, `paid` — quindi **non esiste un valore «nessuna email»**, e il valore `no_one` usato fino al 14 ottobre dal client era sbagliato (il comando `article schedule` falliva con 400, senza programmare nulla). Dal 14 ottobre il CLI invia uno dei quattro valori ammessi, scelto con `--email` (default `everyone`)
-- [ ] Schedule: cosa significhi `email_audience: null`/assente (nessuna email? oppure «usa `should_send_email` della bozza», che per default è `true`?) — NON CONFERMATO: non va usato senza verifica, perché potrebbe inviare l'email a tutti gli iscritti
-- [x] Schedule: forma della risposta: 200 con l'**intera bozza**; `postSchedules` contiene `[{ "id", "trigger_at", "post_audience", "email_audience" }]` e `is_published` resta `false`, `post_date` resta `null` — CONFERMATO
-- [x] Nota: la bozza creata ha `should_send_email: true` di default
-- [ ] Cancel: metodo — NON CONFERMATO
-- [ ] Cancel: percorso — NON CONFERMATO
-- [ ] Cancel: corpo della richiesta (anonimizzato) — NON CONFERMATO
-- [ ] Cancel: forma della risposta — NON CONFERMATO
-
-## 7. Creazione nota (ispezione del browser durante una pubblicazione manuale)
-
-- [ ] Data verifica: ____-__-__ — NON CONFERMATO
-- [ ] Metodo — NON CONFERMATO
-- [ ] Percorso — NON CONFERMATO
-- [ ] Corpo della richiesta (anonimizzato) — NON CONFERMATO
-- [ ] Forma della risposta — NON CONFERMATO
-
-## 8. Nomi dei nodi del corpo JSON
-
-- [x] Data verifica: 2026-10-08 — i nodi sotto sono stati inviati e poi riletti dal server: tornano **identici**
-- [x] Liste puntate: `bullet_list` — CONFERMATO (annidamento incluso)
-- [x] Liste numerate: `ordered_list` — CONFERMATO (senza attributo `start`)
-- [x] Elemento di lista: `list_item` (contiene `paragraph`) — CONFERMATO
-- [x] Titoli: `heading` con `attrs.level` — CONFERMATO (livello 2 provato)
-- [x] Paragrafo e nodo testo: `paragraph`, `text` — CONFERMATO
-- [x] Marks: `strong`, `em`, `code`, `link` con `attrs.href` — CONFERMATO
-- [x] Blocco di codice: `code_block` con `attrs.language` — CONFERMATO
-- [x] Citazione: `blockquote` (contiene `paragraph`) — CONFERMATO
-- [x] Separatore: `horizontal_rule` — CONFERMATO
-- [ ] `hard_break` — NON CONFERMATO (non incluso nella prova)
-- [ ] Struttura delle immagini (nodo, attributi `src`/`alt`): `captionedImage`/`image2` è ancora un'ipotesi — NON CONFERMATO
-- [ ] Altri nodi osservati — NON CONFERMATO
-
-## 9. Aggiornamento bozza (`article update`)
-
-- [x] Data verifica: 2026-10-14 — CONFERMATO per il titolo (bozza reale della pubblicazione dell'utente, mai pubblicata né inviata, con il suo ok esplicito)
-- [x] Metodo: PUT — CONFERMATO
-- [x] Percorso: `https://<subdomain>.substack.com/api/v1/drafts/<id>` — CONFERMATO
-- [x] Aggiornamento parziale: inviando solo `{ "draft_title": "..." }` il titolo cambia e sottotitolo e corpo restano intatti (verificato dall'utente nell'editor web) — CONFERMATO
-- [ ] `draft_subtitle` da solo — NON CONFERMATO (stesso endpoint e stessa forma del titolo: atteso funzionante, non ancora provato)
-- [ ] `draft_body` (sostituzione del corpo con `--file`) — NON CONFERMATO: provarlo prima su una bozza di prova, perché sovrascrive il contenuto
-- [x] Forma della risposta: stato 2xx; il client non la usa e rilegge la bozza con GET, che ha restituito il titolo aggiornato — CONFERMATO
-
-## 10. Immagini e copertina (`image upload`, `--cover`)
-
-- [ ] Data verifica: ____-__-__ — NON CONFERMATO
-- [ ] Caricamento: metodo POST, percorso `https://<subdomain>.substack.com/api/v1/image`, corpo JSON `{ "image": "data:<mime>;base64,..." }` — NON CONFERMATO. Le librerie non ufficiali inviano lo stesso campo come form-urlencoded: se il JSON viene rifiutato è la prima variante da provare
-- [ ] Caricamento: forma della risposta (attesa: oggetto con `url` https sul CDN di Substack) — NON CONFERMATO
-- [ ] Copertina: `PUT https://<subdomain>.substack.com/api/v1/drafts/<id>` con `{ "cover_image": "<url>" }`, aggiornamento parziale come per `draft_title` — NON CONFERMATO
-- [ ] Copertina: la rilettura della bozza (`GET /api/v1/drafts/<id>`) riporta `cover_image` uguale all'URL inviato — NON CONFERMATO
-- [ ] Copertina visibile nell'editor web e nell'anteprima di condivisione — NON CONFERMATO
+- [x] Data verifica: 2026-10-14, con `image upload` e `article draft - --cover <url>` su una bozza di prova mai pubblicata
+- [x] Caricamento: metodo POST, percorso `https://<subdomain>.substack.com/api/v1/image`, corpo JSON `{ "image": "data:<mime>;base64,..." }` — CONFERMATO (PNG da 1,28 MB accettato, non serve il form-urlencoded)
+- [x] Caricamento: forma della risposta, oggetto con `url` https, nella forma `https://substack-post-media.s3.amazonaws.com/public/images/<uuid>_<larghezza>x<altezza>.<ext>` — CONFERMATO
+- [x] Copertina: `PUT https://<subdomain>.substack.com/api/v1/drafts/<id>` con `{ "cover_image": "<url>" }`, aggiornamento parziale come per `draft_title` — CONFERMATO
+- [x] Copertina: la rilettura della bozza (`GET /api/v1/drafts/<id>`) riporta `cover_image` uguale all'URL inviato — CONFERMATO
+- [x] Copertina visibile nell'editor web, nelle impostazioni del post — CONFERMATO. Non compare nel corpo del post: Substack la usa per l'elenco dei post, l'anteprima dell'email e le condivisioni. Chi la vuole anche nel testo la inserisce come immagine nel Markdown
+- [ ] `article update <id> --cover`: stesso `PUT`, non ancora provato dal comando `update`
 
 Procedura (solo con ok esplicito dell'utente, su una bozza di prova mai pubblicata):
 
