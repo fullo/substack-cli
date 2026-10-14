@@ -101,7 +101,8 @@ export const articleCommands: Command[] = [
           `[dry-run] ${summary}`);
         return 0;
       }
-      if (!flag(values, 'yes')) {
+      const confirmInteractively = !flag(values, 'yes');
+      if (confirmInteractively) {
         ctx.err(summary);
         const answer = await ctx.prompt('Scrivi "aggiorna" per confermare: ');
         if (answer.trim().toLowerCase() !== 'aggiorna') throw new UsageError('Aggiornamento annullato');
@@ -118,7 +119,8 @@ export const articleCommands: Command[] = [
         );
       }
       emit(ctx, values, { id, updated: true, changed, title: after.draft_title ?? '', subtitle: after.draft_subtitle ?? '' },
-        `${summary}\nBozza ${id} aggiornata`);
+        // Con la conferma interattiva il riepilogo è già stato mostrato: non ripeterlo.
+        confirmInteractively ? `Bozza ${id} aggiornata` : `${summary}\nBozza ${id} aggiornata`);
       return 0;
     },
   },

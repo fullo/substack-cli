@@ -117,7 +117,7 @@ substack article schedule 123 --cancel                          # annulla la sch
 
 ### Note
 
-- `article update` modifica solo bozze non pubblicate e invia solo i campi che cambiano. Con `--file` il file è la fonte completa (corpo, `title` e `subtitle` del front-matter); `--title` e `--subtitle` prevalgono sul file. Sostituire il corpo cancella le modifiche fatte nell'editor web. Dopo l'invio il comando rilegge la bozza e fallisce (exit 3) se titolo o sottotitolo non risultano aggiornati: l'endpoint `PUT /api/v1/drafts/<id>` non è ancora confermato (vedi `tests/fixtures/README.md`, sezione 9).
+- `article update` modifica solo bozze non pubblicate e invia solo i campi che cambiano. Con `--file` il file è la fonte completa (corpo, `title` e `subtitle` del front-matter); `--title` e `--subtitle` prevalgono sul file. Sostituire il corpo cancella le modifiche fatte nell'editor web. Dopo l'invio il comando rilegge la bozza e fallisce (exit 3) se titolo o sottotitolo non risultano aggiornati. L'aggiornamento del solo titolo è verificato su Substack reale; la sostituzione del corpo non ancora, quindi conviene provarla prima su una bozza di prova (vedi `tests/fixtures/README.md`, sezione 9).
 Le note vivono in una coda locale; `notes run-due` pubblica quelle schedulate scadute.
 
 ```bash

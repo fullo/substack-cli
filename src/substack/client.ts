@@ -6,7 +6,7 @@
 //                   GET  /api/v1/post_management/drafts?offset&limit&order_by&order_direction
 //                   POST /api/v1/drafts/{id}/publish
 //                   POST /api/v1/drafts/{id}/scheduled_release
-//                   PUT  /api/v1/drafts/{id}   (NON CONFERMATO: aggiornamento bozza)
+//                   PUT  /api/v1/drafts/{id}   (aggiornamento parziale confermato per draft_title)
 import type { z } from 'zod';
 import type { PMDoc } from '../markdown/prosemirror.ts';
 import { ApiShapeError, AuthError, NetworkError, RateLimitError, UsageError } from '../util/errors.ts';
@@ -174,8 +174,8 @@ export class SubstackClient {
   }
 
   /**
-   * Aggiorna i campi indicati di una bozza esistente. Endpoint NON CONFERMATO (tests/fixtures/README.md, sezione 9):
-   * chi chiama deve rileggere la bozza per verificare che l'aggiornamento sia stato applicato.
+   * Aggiorna i campi indicati di una bozza esistente (tests/fixtures/README.md, sezione 9: aggiornamento parziale
+   * confermato per draft_title, non ancora per draft_subtitle e draft_body). Chi chiama rilegge la bozza per verificare l'esito.
    * PUT è idempotente: lo stesso corpo inviato due volte produce lo stesso stato, quindi i retry sono sicuri.
    */
   async updateDraft(id: number, patch: DraftPatch): Promise<void> {

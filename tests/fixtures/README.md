@@ -90,9 +90,10 @@ Data di compilazione: ____-__-__
 
 ## 9. Aggiornamento bozza (`article update`)
 
-- [ ] Data verifica: ____-__-__ — NON CONFERMATO
-- [ ] Metodo: PUT (ipotesi, coerente con `POST /api/v1/drafts` e `GET /api/v1/drafts/<id>`) — NON CONFERMATO
-- [ ] Percorso: `https://<subdomain>.substack.com/api/v1/drafts/<id>` — NON CONFERMATO
-- [ ] Corpo della richiesta: solo i campi modificati tra `draft_title`, `draft_subtitle`, `draft_body` (stringa JSON ProseMirror) — NON CONFERMATO se Substack accetta un aggiornamento parziale oppure richiede l'intero oggetto bozza
-- [ ] Forma della risposta — NON CONFERMATO (il client la ignora e rilegge la bozza con GET per verificare titolo e sottotitolo)
-- [ ] Come verificare senza rischi: in una bozza di prova, cambiare il titolo nell'editor web e annotare dalla scheda Network metodo, percorso e corpo della richiesta di salvataggio; oppure, con ok esplicito, eseguire `substack article update <id-bozza-di-prova> --title "TEST-CLI"` e controllare il titolo con `article list`
+- [x] Data verifica: 2026-10-14 — CONFERMATO per il titolo (bozza reale della pubblicazione dell'utente, mai pubblicata né inviata, con il suo ok esplicito)
+- [x] Metodo: PUT — CONFERMATO
+- [x] Percorso: `https://<subdomain>.substack.com/api/v1/drafts/<id>` — CONFERMATO
+- [x] Aggiornamento parziale: inviando solo `{ "draft_title": "..." }` il titolo cambia e sottotitolo e corpo restano intatti (verificato dall'utente nell'editor web) — CONFERMATO
+- [ ] `draft_subtitle` da solo — NON CONFERMATO (stesso endpoint e stessa forma del titolo: atteso funzionante, non ancora provato)
+- [ ] `draft_body` (sostituzione del corpo con `--file`) — NON CONFERMATO: provarlo prima su una bozza di prova, perché sovrascrive il contenuto
+- [x] Forma della risposta: stato 2xx; il client non la usa e rilegge la bozza con GET, che ha restituito il titolo aggiornato — CONFERMATO
