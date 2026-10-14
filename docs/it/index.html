@@ -96,9 +96,8 @@
           <li><h3>Installa e compila</h3>
 <pre tabindex="0"><code>git clone https://github.com/fullo/substack-cli.git
 cd substack-cli
-npm ci
-npm run build</code></pre>
-            <p>Serve Node 22.18 o successivo. Il comando è <code>node dist/cli/main.js</code>; negli esempi sotto lo abbreviamo in <code>substack</code> (con <code>npm i -g .</code> diventa un comando vero).</p></li>
+npm run setup</code></pre>
+            <p>Serve Node 22.18 o successivo. <code>npm run setup</code> installa le dipendenze, compila e lancia <code>npm link</code>, che registra il comando <code>substack</code> come collegamento simbolico al repository: ogni <code>npm run build</code> successivo è subito attivo. Se la cartella globale di npm non è scrivibile dal tuo utente, usa un gestore di versioni come nvm oppure un prefisso nella tua home, non <code>sudo</code>. Senza link il comando è <code>node dist/cli/main.js</code>. Per toglierlo: <code>npm unlink -g substack-cli</code>.</p></li>
 
           <li><h3>Configura la pubblicazione</h3>
 <pre tabindex="0"><code>substack config init --publication la-tua-newsletter --lang it</code></pre>

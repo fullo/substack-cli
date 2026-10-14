@@ -96,9 +96,8 @@ to confirm explicitly</span>
           <li><h3>Install and build</h3>
 <pre tabindex="0"><code>git clone https://github.com/fullo/substack-cli.git
 cd substack-cli
-npm ci
-npm run build</code></pre>
-            <p>You need Node 22.18 or later. The command is <code>node dist/cli/main.js</code>; in the examples below it's shortened to <code>substack</code> (<code>npm i -g .</code> turns it into a real command).</p></li>
+npm run setup</code></pre>
+            <p>You need Node 22.18 or later. <code>npm run setup</code> installs the dependencies, builds, and runs <code>npm link</code>, which registers the <code>substack</code> command as a symlink to the repository, so every later <code>npm run build</code> is picked up right away. If npm's global folder isn't writable by your user, use a version manager such as nvm or set a prefix in your home rather than <code>sudo</code>. Without the link the command is <code>node dist/cli/main.js</code>. To remove it: <code>npm unlink -g substack-cli</code>.</p></li>
 
           <li><h3>Set up your publication</h3>
 <pre tabindex="0"><code>substack config init --publication your-newsletter
