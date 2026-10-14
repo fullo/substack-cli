@@ -7,7 +7,7 @@ CLI in Node/TypeScript per scrivere e pubblicare su Substack da terminale: bozze
 ## 1. Cos'è e avvertenze
 
 - **Le API di Substack usate qui sono interne e non documentate.** Possono cambiare senza preavviso; l'uso è a tuo rischio e pericolo e potrebbe violare i termini del servizio. Quando una risposta non ha più la forma attesa il CLI esce con codice 3 (vedi "Risoluzione problemi").
-- Un articolo **non viene mai pubblicato senza `--yes`** (o conferma interattiva). L'email ai iscritti parte **solo con `--send-email`**.
+- Un articolo **non viene mai pubblicato né programmato senza `--yes`** (o conferma interattiva). Con `article publish` l'email agli iscritti parte **solo con `--send-email`**. Con `article schedule` l'email parte sempre, perché Substack non ha un'opzione «nessuna email»: i destinatari si scelgono con `--email` (default `everyone`) e compaiono nel riepilogo prima della conferma.
 - Il cookie di sessione `substack.sid` equivale a una password: non committarlo, non incollarlo in chat o log.
 
 ## 2. Requisiti e installazione
@@ -113,7 +113,8 @@ substack article update 123 --title "..." --dry-run            # mostra il prima
 substack article publish 123                    # chiede conferma
 substack article publish 123 --yes              # pubblica senza email
 substack article publish 123 --yes --send-email # pubblica e invia l'email agli iscritti
-substack article schedule 123 --at 2026-10-09T09:00:00+02:00   # schedulazione nativa Substack: chiede conferma ("schedule", o "programma" in italiano)
+substack article schedule 123 --at 2026-10-09T09:00:00+02:00   # schedulazione nativa Substack, email a tutti (default): chiede conferma ("schedule", o "programma" in italiano)
+substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --email only_free   # destinatari: everyone (default), only_free, only_paid, founding
 substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --yes        # senza prompt (obbligatorio da script/cron)
 substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --dry-run    # mostra titolo, data ed email senza schedulare
 substack article schedule 123 --cancel                          # annulla la schedulazione

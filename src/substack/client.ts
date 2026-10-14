@@ -33,6 +33,22 @@ export interface ClientOptions {
 
 interface RequestInitLite { method: 'GET' | 'POST' | 'PUT'; body?: unknown }
 
+/**
+ * Destinatari dell'email di un post programmato: i soli valori accettati da Substack
+ * (tests/fixtures/README.md, sezione 6). Non esiste un valore "nessuna email".
+ */
+export const EMAIL_AUDIENCES = ['everyone', 'only_free', 'only_paid', 'founding'] as const;
+export type EmailAudience = typeof EMAIL_AUDIENCES[number];
+
+export function parseEmailAudience(value: string | undefined): EmailAudience {
+  const v = value ?? 'everyone';
+  if (!(EMAIL_AUDIENCES as readonly string[]).includes(v)) {
+    throw new UsageError(t(`Invalid --email: "${v}" (allowed: ${EMAIL_AUDIENCES.join(', ')})`,
+      `--email non valido: "${v}" (valori ammessi: ${EMAIL_AUDIENCES.join(', ')})`));
+  }
+  return v as EmailAudience;
+}
+
 export interface DraftPatch { title?: string; subtitle?: string; body?: PMDoc; coverImage?: string }
 
 export function parseDraftId(value: string | undefined): number {
@@ -227,13 +243,13 @@ export class SubstackClient {
     }, AnySchema, false);
   }
 
-  async scheduleDraft(id: number, at: Date, opts: { sendEmail: boolean }): Promise<void> {
+  async scheduleDraft(id: number, at: Date, opts: { emailAudience: EmailAudience }): Promise<void> {
     await this.request(this.publicationUrl, `/api/v1/drafts/${id}/scheduled_release`, {
       method: 'POST',
       body: {
         trigger_at: at.toISOString(),
         post_audience: 'everyone',
-        email_audience: opts.sendEmail ? 'everyone' : 'no_one',
+        email_audience: parseEmailAudience(opts.emailAudience),
       },
     }, AnySchema, false);
   }

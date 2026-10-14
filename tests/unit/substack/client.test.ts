@@ -143,12 +143,12 @@ test('publishDraft / scheduleDraft / cancelSchedule', async () => {
   assert.equal(JSON.parse(String(calls[0]!.init.body)).send, false);
   assert.equal(JSON.parse(String(calls[1]!.init.body)).send, true);
 
-  await c.scheduleDraft(5, new Date('2026-10-09T07:00:00Z'), { sendEmail: false });
+  await c.scheduleDraft(5, new Date('2026-10-09T07:00:00Z'), { emailAudience: 'only_free' });
   assert.equal(calls[2]!.url, `${PUB}/api/v1/drafts/5/scheduled_release`);
   const sch = JSON.parse(String(calls[2]!.init.body));
   assert.equal(sch.trigger_at, '2026-10-09T07:00:00.000Z');
-  assert.equal(sch.email_audience, 'no_one');
-  await c.scheduleDraft(5, new Date('2026-10-09T07:00:00Z'), { sendEmail: true });
+  assert.equal(sch.email_audience, 'only_free');
+  await c.scheduleDraft(5, new Date('2026-10-09T07:00:00Z'), { emailAudience: 'everyone' });
   assert.equal(JSON.parse(String(calls[3]!.init.body)).email_audience, 'everyone');
 
   await c.cancelSchedule(5);
@@ -191,4 +191,18 @@ test('updateDraft: patch vuota → UsageError senza richieste; errori di rete ri
   const retried: Call[] = [];
   await client(() => (++n < 3 ? json({}, 503) : json({ id: 7 })), retried).updateDraft(7, { title: 'x' });
   assert.equal(retried.length, 3);
+});
+
+test('scheduleDraft: solo i destinatari accettati da Substack, mai "no_one"', async () => {
+  const calls: Call[] = [];
+  const c = client(() => json({}), calls);
+  for (const a of ['everyone', 'only_free', 'only_paid', 'founding'] as const) {
+    await c.scheduleDraft(5, new Date('2026-10-09T07:00:00Z'), { emailAudience: a });
+    assert.equal(JSON.parse(String(calls.at(-1)!.init.body)).email_audience, a);
+  }
+  const before = calls.length;
+  for (const bad of ['no_one', 'none', 'paid', '', 'EVERYONE']) {
+    await assert.rejects(c.scheduleDraft(5, new Date('2026-10-09T07:00:00Z'), { emailAudience: bad as 'everyone' }), UsageError, bad);
+  }
+  assert.equal(calls.length, before);
 });

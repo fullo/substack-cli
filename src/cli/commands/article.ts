@@ -1,5 +1,5 @@
 import { parseArticle, parseSubtitle, parseTitle } from '../../markdown/frontmatter.ts';
-import { parseDraftId } from '../../substack/client.ts';
+import { parseDraftId, parseEmailAudience } from '../../substack/client.ts';
 import type { DraftPatch } from '../../substack/client.ts';
 import { parseFutureInstant } from '../../util/clock.ts';
 import { ApiShapeError, CliError, UsageError } from '../../util/errors.ts';
@@ -227,11 +227,11 @@ export const articleCommands: Command[] = [
   {
     path: 'article schedule',
     summary: {
-      en: 'Schedule (--at <ISO with offset>, needs confirmation or --yes) or cancel (--cancel) Substack\'s own scheduled publishing',
-      it: 'Schedula (--at <ISO con offset>, richiede conferma o --yes) o annulla (--cancel) la pubblicazione nativa di Substack',
+      en: 'Schedule (--at <ISO with offset>, --email <recipients, default everyone>, needs confirmation or --yes) or cancel (--cancel) Substack\'s own scheduled publishing',
+      it: 'Schedula (--at <ISO con offset>, --email <destinatari, default everyone>, richiede conferma o --yes) o annulla (--cancel) la pubblicazione nativa di Substack',
     },
     options: {
-      at: { type: 'string' }, cancel: { type: 'boolean' }, 'send-email': { type: 'boolean' },
+      at: { type: 'string' }, cancel: { type: 'boolean' }, email: { type: 'string' },
       yes: { type: 'boolean' }, 'dry-run': { type: 'boolean' },
     },
     async run(ctx, { values, positionals }) {
@@ -239,6 +239,7 @@ export const articleCommands: Command[] = [
       const at = str(values, 'at');
       const cancel = flag(values, 'cancel');
       if ((at === undefined) === !cancel) throw new UsageError(t('Specify exactly one of --at <date> and --cancel', 'Specifica esattamente una opzione tra --at <data> e --cancel'));
+      if (cancel && str(values, 'email') !== undefined) throw new UsageError(t('--email only applies to --at', '--email vale solo con --at'));
       if (cancel) {
         // Annullare non pubblica nulla: nessuna conferma richiesta.
         await (await makeClient(ctx)).cancelSchedule(id);
@@ -246,7 +247,9 @@ export const articleCommands: Command[] = [
         return 0;
       }
       const when = parseFutureInstant(at as string, ctx.now());
-      const sendEmail = flag(values, 'send-email');
+      // Substack non ha un valore "nessuna email": il default è inviarla a tutti gli iscritti,
+      // e il destinatario compare sempre nel riepilogo prima della conferma.
+      const emailAudience = parseEmailAudience(str(values, 'email'));
       const dry = flag(values, 'dry-run');
       // Una schedulazione è una pubblicazione differita: stesso gating di "article publish",
       // verificato prima di qualsiasi richiesta di rete.
@@ -255,20 +258,20 @@ export const articleCommands: Command[] = [
       }
       const client = await makeClient(ctx);
       const title = (await client.getDraft(id)).draft_title ?? t('(untitled)', '(senza titolo)');
-      const summary = t(`Scheduling "${title}" (id ${id}) for ${when.toISOString()} — email to subscribers: ${sendEmail ? 'YES' : 'no'}`,
-        `Schedulazione di "${title}" (id ${id}) per ${when.toISOString()} — email agli iscritti: ${sendEmail ? 'SÌ' : 'no'}`);
+      const summary = t(`Scheduling "${title}" (id ${id}) for ${when.toISOString()} — email to: ${emailAudience}`,
+        `Schedulazione di "${title}" (id ${id}) per ${when.toISOString()} — email a: ${emailAudience}`);
       if (dry) {
-        emit(ctx, values, { dryRun: true, id, title, scheduledFor: when.toISOString(), sendEmail }, `[dry-run] ${summary}`);
+        emit(ctx, values, { dryRun: true, id, title, scheduledFor: when.toISOString(), emailAudience }, `[dry-run] ${summary}`);
         return 0;
       }
       if (!flag(values, 'yes')) {
         ctx.err(summary);
         await confirmByTyping(ctx, t('schedule', 'programma'), t('Scheduling cancelled', 'Schedulazione annullata'));
       }
-      await client.scheduleDraft(id, when, { sendEmail });
-      emit(ctx, values, { id, scheduledFor: when.toISOString(), sendEmail },
-        t(`Draft ${id} scheduled for ${when.toISOString()} (email: ${sendEmail ? 'yes' : 'no'})`,
-          `Bozza ${id} schedulata per ${when.toISOString()} (email: ${sendEmail ? 'sì' : 'no'})`));
+      await client.scheduleDraft(id, when, { emailAudience });
+      emit(ctx, values, { id, scheduledFor: when.toISOString(), emailAudience },
+        t(`Draft ${id} scheduled for ${when.toISOString()} (email to: ${emailAudience})`,
+          `Bozza ${id} schedulata per ${when.toISOString()} (email a: ${emailAudience})`));
       return 0;
     },
   },
