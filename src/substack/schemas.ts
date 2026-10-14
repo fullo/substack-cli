@@ -16,6 +16,7 @@ export const DraftSchema = z
     draft_title: z.string().nullable().optional(),
     draft_subtitle: z.string().nullable().optional(),
     audience: z.string().nullable().optional(),
+    is_published: z.boolean().nullable().optional(),
   })
   .passthrough();
 

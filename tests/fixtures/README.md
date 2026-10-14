@@ -87,3 +87,12 @@ Data di compilazione: ____-__-__
 - [ ] `hard_break` — NON CONFERMATO (non incluso nella prova)
 - [ ] Struttura delle immagini (nodo, attributi `src`/`alt`): `captionedImage`/`image2` è ancora un'ipotesi — NON CONFERMATO
 - [ ] Altri nodi osservati — NON CONFERMATO
+
+## 9. Aggiornamento bozza (`article update`)
+
+- [ ] Data verifica: ____-__-__ — NON CONFERMATO
+- [ ] Metodo: PUT (ipotesi, coerente con `POST /api/v1/drafts` e `GET /api/v1/drafts/<id>`) — NON CONFERMATO
+- [ ] Percorso: `https://<subdomain>.substack.com/api/v1/drafts/<id>` — NON CONFERMATO
+- [ ] Corpo della richiesta: solo i campi modificati tra `draft_title`, `draft_subtitle`, `draft_body` (stringa JSON ProseMirror) — NON CONFERMATO se Substack accetta un aggiornamento parziale oppure richiede l'intero oggetto bozza
+- [ ] Forma della risposta — NON CONFERMATO (il client la ignora e rilegge la bozza con GET per verificare titolo e sottotitolo)
+- [ ] Come verificare senza rischi: in una bozza di prova, cambiare il titolo nell'editor web e annotare dalla scheda Network metodo, percorso e corpo della richiesta di salvataggio; oppure, con ok esplicito, eseguire `substack article update <id-bozza-di-prova> --title "TEST-CLI"` e controllare il titolo con `article list`
