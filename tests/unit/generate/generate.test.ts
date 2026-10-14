@@ -2,6 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { extractMarkdown, generateArticle, generateNote, InvalidOutputError, slugify } from '../../../src/generate/generate.ts';
 import type { Provider } from '../../../src/generate/provider.ts';
+import { setLang } from '../../../src/util/i18n.ts';
+
+// Questi test verificano i messaggi esatti in italiano: ogni file gira in un processo a sé,
+// quindi la lingua fissata qui non tocca gli altri. L'inglese (default) è coperto dai test della CLI.
+setLang('it');
 
 const stub = (text: string, seen: { prompt?: string; system?: string } = {}): Provider => ({
   async generate(req) { seen.prompt = req.prompt; seen.system = req.system; return text; },

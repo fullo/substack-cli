@@ -49,7 +49,7 @@ test('output non valido dell\'LLM: exit 5, testo grezzo salvato come rifiutato, 
     await configure(sb, model.url);
     const r = await sb.run(['generate', 'article', '--topic', 'x', '--draft']);
     assert.equal(r.code, 5);
-    assert.match(r.stderr, /rifiutato-/);
+    assert.match(r.stderr, /rejected-/);
     const files = await readdir(join(sb.dataDir, 'drafts'));
     assert.equal(files.length, 1);
     assert.equal(sub.count('POST', '/api/v1/drafts'), 0);
@@ -101,7 +101,7 @@ test('server LLM che risponde con un corpo chunked oltre 5 MB: exit 5, nessun fi
     await configure(sb, model.url);
     const r = await sb.run(['generate', 'article', '--topic', 'x', '--draft']);
     assert.equal(r.code, 5, r.stderr);
-    assert.match(r.stderr, /troppo grande/);
+    assert.match(r.stderr, /too large/);
     assert.equal(sub.count('POST', '/api/v1/drafts'), 0);
     for (let i = 0; i < 50 && sentBeforeClose < 0; i++) await new Promise((ok) => setTimeout(ok, 20));
     assert.ok(sentBeforeClose >= 0 && sentBeforeClose < 32 * 1024 * 1024, `byte inviati: ${sentBeforeClose}`);

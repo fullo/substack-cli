@@ -25,12 +25,16 @@ test('nessuna combinazione non interattiva pubblica senza --yes', async () => {
       ['article', 'publish', '1001', '--ye'],
       ['article', 'publish', '1001', 'yes'],
       ['article', 'publish', '1001', 'pubblica'],
+      ['article', 'publish', '1001', 'publish'],
       ['article', 'publish', '--', '1001', '--yes'],
       ['article', 'publish', '1001', '--dry-run=false'],
     ]) {
-      const r = await sb.run(args, { stdin: 'pubblica\n' }); // anche con "pubblica" su stdin
-      assert.notEqual(r.code, 0, args.join(' '));
-      assert.ok(!/Pubblicato/.test(r.stdout), args.join(' '));
+      // Anche con la parola di conferma su stdin, in entrambe le lingue.
+      for (const [env, word] of [[{}, 'publish'], [{ SUBSTACK_LANG: 'it' }, 'pubblica']] as const) {
+        const r = await sb.run(args, { stdin: `${word}\n`, env });
+        assert.notEqual(r.code, 0, `${args.join(' ')} (${word})`);
+        assert.ok(!/Published|Pubblicato/.test(r.stdout), `${args.join(' ')} (${word})`);
+      }
     }
     assert.equal(server.requests.filter((q) => PUBLISH_OR_SCHEDULE.test(q.path)).length, 0);
   } finally { await sb.cleanup(); await server.stop(); }
@@ -121,9 +125,12 @@ test('article schedule --at non interattivo senza --yes: exit 64 e nessuna richi
       ['article', 'schedule', '1001', '--at', at, '--dry-run=false'],
       ['article', 'schedule', '--', '1001', '--at', at, '--yes'],
     ]) {
-      const r = await sb.run(args, { stdin: 'programma\n' }); // anche con la parola di conferma su stdin
-      assert.equal(r.code, 64, `${args.join(' ')}\n${r.stderr}`);
-      assert.ok(!/schedulata/.test(r.stdout), args.join(' '));
+      // Anche con la parola di conferma su stdin, in entrambe le lingue.
+      for (const [env, word] of [[{}, 'schedule'], [{ SUBSTACK_LANG: 'it' }, 'programma']] as const) {
+        const r = await sb.run(args, { stdin: `${word}\n`, env });
+        assert.equal(r.code, 64, `${args.join(' ')} (${word})\n${r.stderr}`);
+        assert.ok(!/scheduled for|schedulata/.test(r.stdout), `${args.join(' ')} (${word})`);
+      }
     }
     assert.equal(server.requests.length, 0);
   } finally { await sb.cleanup(); await server.stop(); }

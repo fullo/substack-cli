@@ -10,6 +10,11 @@ import type { Note } from '../../../src/notes/store.ts';
 import { publishOne, runDue } from '../../../src/notes/publish.ts';
 import { AuthError, NetworkError, StateError } from '../../../src/util/errors.ts';
 import { withTmpDir } from '../../helpers/tmp.ts';
+import { setLang } from '../../../src/util/i18n.ts';
+
+// Questi test verificano i messaggi esatti in italiano: ogni file gira in un processo a sé,
+// quindi la lingua fissata qui non tocca gli altri. L'inglese (default) è coperto dai test della CLI.
+setLang('it');
 
 const T0 = new Date('2026-10-08T10:00:00Z');
 const NOW = new Date('2026-10-08T12:00:00Z');

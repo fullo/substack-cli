@@ -3,6 +3,7 @@ import { readFileSync, rmSync } from 'node:fs';
 import { link, mkdir, open, readFile, rename, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { StateError } from './errors.ts';
+import { t } from './i18n.ts';
 
 function errno(e: unknown): string | undefined {
   return (e as NodeJS.ErrnoException).code;
@@ -30,7 +31,7 @@ export async function readTextIfExists(path: string): Promise<string | undefined
 }
 
 function busy(lockPath: string): StateError {
-  return new StateError(`Operazione già in corso (lock: ${lockPath})`);
+  return new StateError(t(`Operation already in progress (lock: ${lockPath})`, `Operazione già in corso (lock: ${lockPath})`));
 }
 
 function newToken(): string {
@@ -111,7 +112,7 @@ async function acquire(lockPath: string, staleMs: number): Promise<string> {
     if (stale === undefined) continue; // rilasciato nel frattempo: riprova
     if (!stale || !(await removeStaleLock(lockPath, staleMs, token))) throw busy(lockPath);
   }
-  throw new StateError(`Impossibile acquisire il lock: ${lockPath}`);
+  throw new StateError(t(`Could not acquire the lock: ${lockPath}`, `Impossibile acquisire il lock: ${lockPath}`));
 }
 
 // Rilascia il lock solo se è ancora nostro: se fn è durato oltre staleMs e un altro processo lo ha
@@ -141,7 +142,7 @@ export async function withLock<T>(
   const handle: LockHandle = {
     async refresh() {
       if ((await readTextIfExists(lockPath)) !== token) {
-        throw new StateError(`Lock perso: ${lockPath} è stato rimosso o preso in carico da un altro processo`);
+        throw new StateError(t(`Lock lost: ${lockPath} was removed or taken over by another process`, `Lock perso: ${lockPath} è stato rimosso o preso in carico da un altro processo`));
       }
       const now = new Date();
       await utimes(lockPath, now, now);

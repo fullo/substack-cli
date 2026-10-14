@@ -20,7 +20,7 @@ test('article draft da file crea la bozza con corpo ProseMirror e cookie corrett
   try {
     const r = await sb.run(['article', 'draft', file]);
     assert.equal(r.code, 0, r.stderr);
-    assert.match(r.stdout, /Bozza creata: id 1001/);
+    assert.match(r.stdout, /Draft created: id 1001/);
     const post = server.requests.find((q) => q.method === 'POST' && q.path === '/api/v1/drafts')!;
     assert.match(String(post.headers.cookie), new RegExp(`substack.sid=${VALID_SID.replace(/\./g, '\\.')}`));
     const body = JSON.parse(post.body);

@@ -101,8 +101,8 @@ npm run build</code></pre>
             <p>Serve Node 22.18 o successivo. Il comando è <code>node dist/cli/main.js</code>; negli esempi sotto lo abbreviamo in <code>substack</code> (con <code>npm i -g .</code> diventa un comando vero).</p></li>
 
           <li><h3>Configura la pubblicazione</h3>
-<pre tabindex="0"><code>substack config init --publication la-tua-newsletter</code></pre>
-            <p>È la parte prima di <code>.substack.com</code>. Con <code>substack config show</code> vedi la configurazione effettiva.</p></li>
+<pre tabindex="0"><code>substack config init --publication la-tua-newsletter --lang it</code></pre>
+            <p>È la parte prima di <code>.substack.com</code>. Con <code>substack config show</code> vedi la configurazione effettiva. I messaggi sono in inglese di default: <code>--lang it</code> li porta in italiano, comprese le parole di conferma. In alternativa c'è la variabile <code>SUBSTACK_LANG=it</code>, che ha la precedenza sul file di configurazione.</p></li>
 
           <li><h3>Dai al CLI il cookie di sessione</h3>
 <pre tabindex="0"><code>substack auth guide    # istruzioni passo passo
@@ -157,7 +157,7 @@ substack config init --publication la-tua-newsletter --force \
 
 substack generate article --topic "Cos'è il green coding" --draft
 substack generate note --topic "Un consiglio sul green coding"</code></pre>
-            <p>Con <code>--provider anthropic</code> si usa invece l'API di Anthropic con la variabile <code>ANTHROPIC_API_KEY</code>. L'articolo generato viene salvato in locale e, con <code>--draft</code>, diventa una bozza online; la nota va nella coda. Non viene pubblicato niente.</p></li>
+            <p>Con <code>--provider anthropic</code> si usa invece l'API di Anthropic con la variabile <code>ANTHROPIC_API_KEY</code>. Il testo viene generato nella lingua del CLI, salvo <code>--lang</code>. L'articolo generato viene salvato in locale e, con <code>--draft</code>, diventa una bozza online; la nota va nella coda. Non viene pubblicato niente.</p></li>
 
           <li><h3>Su una macchina sempre accesa</h3>
 <pre tabindex="0"><code>docker build -f deploy/Dockerfile -t substack-cli:0.1.0 .
@@ -174,7 +174,7 @@ kubectl apply -f deploy/k3s/configmap.yaml -f deploy/k3s/cronjob.yaml</code></pr
         <h3 style="margin-top:34px">Riferimento dei comandi</h3>
         <div class="cmds" role="table" aria-label="Riferimento dei comandi">
           <div class="c" role="row"><code role="cell">auth guide · set · check · login</code><span role="cell">Ottieni, salva e verifica il cookie (<code>login</code> apre un browser, con Playwright installato a parte).</span></div>
-          <div class="c" role="row"><code role="cell">config init · show</code><span role="cell">Crea e mostra la configurazione.</span></div>
+          <div class="c" role="row"><code role="cell">config init · show</code><span role="cell">Crea e mostra la configurazione (<code>--lang en|it</code>).</span></div>
           <div class="c" role="row"><code role="cell">article draft &lt;file|-&gt;</code><span role="cell">Crea una bozza da Markdown. <code>--dry-run</code> per provare.</span></div>
           <div class="c" role="row"><code role="cell">article list</code><span role="cell">Elenca le bozze più recenti.</span></div>
           <div class="c" role="row"><code role="cell">article update &lt;id&gt;</code><span role="cell">Modifica una bozza non pubblicata. <code>--title</code>, <code>--subtitle</code>, <code>--file</code>, <code>--yes</code>, <code>--dry-run</code>.</span></div>
@@ -246,7 +246,7 @@ substack notes run-due        # ogni minuto, da cron</code></pre>
       <div>
         <h2 id="h-numeri">In numeri</h2>
         <div class="figures" role="list">
-          <div role="listitem"><strong>391</strong><span>test: unitari, funzionali (CLI vero contro server finti) e di sicurezza.</span></div>
+          <div role="listitem"><strong>398</strong><span>test: unitari, funzionali (CLI vero contro server finti) e di sicurezza.</span></div>
           <div role="listitem"><strong>96%</strong><span>mutation score su 1523 mutanti.</span></div>
           <div role="listitem"><strong>3</strong><span>dipendenze di runtime, senza dipendenze transitive: <code>marked</code>, <code>yaml</code>, <code>zod</code>.</span></div>
           <div role="listitem"><strong>0</strong><span>vulnerabilità note nelle dipendenze di runtime (<code>npm audit</code>).</span></div>

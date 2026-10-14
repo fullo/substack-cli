@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { readTextIfExists } from '../util/fs.ts';
 import { UsageError } from '../util/errors.ts';
 import { formatIssues } from '../util/issues.ts';
+import { LANGS, t } from '../util/i18n.ts';
 
 export function configDir(env: NodeJS.ProcessEnv): string {
   return env.SUBSTACK_CLI_CONFIG_DIR ?? join(homedir(), '.config', 'substack-cli');
@@ -50,19 +51,34 @@ function isSafeAnthropicBase(value: string): boolean {
 
 const ConfigSchema = z
   .object({
-    publication: z.string().regex(/^[a-z0-9][a-z0-9-]{0,62}$/, 'subdomain non valido').optional(),
+    publication: z
+      .string()
+      .refine((v) => /^[a-z0-9][a-z0-9-]{0,62}$/.test(v), () => ({ message: t('invalid subdomain', 'subdomain non valido') }))
+      .optional(),
+    lang: z.enum(LANGS).optional(),
     baseUrl: z
       .string()
-      .refine(isSafeSubstackBase, 'baseUrl deve essere https://substack.com o https://*.substack.com (http solo su localhost), senza credenziali')
+      .refine(isSafeSubstackBase, () => ({
+        message: t(
+          'baseUrl must be https://substack.com or https://*.substack.com (http only on localhost), without credentials',
+          'baseUrl deve essere https://substack.com o https://*.substack.com (http solo su localhost), senza credenziali',
+        ),
+      }))
       .optional(),
     generate: z
       .object({
         provider: z.enum(['anthropic', 'openai-compat']).default('anthropic'),
         model: z.string().min(1).default('claude-sonnet-5-5'),
-        baseUrl: z.string().refine(isSafeLlmBase, 'generate.baseUrl deve essere un URL http o https senza credenziali').optional(),
+        baseUrl: z.string().refine(isSafeLlmBase, () => ({
+          message: t('generate.baseUrl must be an http or https URL without credentials',
+            'generate.baseUrl deve essere un URL http o https senza credenziali'),
+        })).optional(),
         anthropicBaseUrl: z
           .string()
-          .refine(isSafeAnthropicBase, 'generate.anthropicBaseUrl ammette solo https://api.anthropic.com')
+          .refine(isSafeAnthropicBase, () => ({
+            message: t('generate.anthropicBaseUrl only allows https://api.anthropic.com',
+              'generate.anthropicBaseUrl ammette solo https://api.anthropic.com'),
+          }))
           .optional(),
         maxTokens: z.number().int().min(1).max(64000).default(4096),
         timeoutMs: z.number().int().min(1000).max(600000).default(120000),
@@ -84,7 +100,10 @@ export async function loadConfig(env: NodeJS.ProcessEnv): Promise<Config> {
     } catch (e) {
       // Mai il messaggio del parser: può riportare un estratto del file (es. un segreto incollato qui per errore).
       const pos = /\(line (\d+) column (\d+)\)/.exec((e as Error).message);
-      throw new UsageError(`config.json non è JSON valido (${path})${pos ? `: riga ${pos[1]}, colonna ${pos[2]}` : ''}`);
+      throw new UsageError(t(
+        `config.json is not valid JSON (${path})${pos ? `: line ${pos[1]}, column ${pos[2]}` : ''}`,
+        `config.json non è JSON valido (${path})${pos ? `: riga ${pos[1]}, colonna ${pos[2]}` : ''}`,
+      ));
     }
   }
   if (env.SUBSTACK_PUBLICATION) raw = { ...raw, publication: env.SUBSTACK_PUBLICATION };
@@ -96,7 +115,8 @@ export async function loadConfig(env: NodeJS.ProcessEnv): Promise<Config> {
 export function validateConfig(raw: unknown): Config {
   const parsed = ConfigSchema.safeParse(raw);
   if (!parsed.success) {
-    throw new UsageError(`Configurazione non valida: ${formatIssues(parsed.error.issues)}`);
+    throw new UsageError(t(`Invalid configuration: ${formatIssues(parsed.error.issues)}`,
+      `Configurazione non valida: ${formatIssues(parsed.error.issues)}`));
   }
   return parsed.data;
 }
@@ -108,7 +128,8 @@ function trimSlash(url: string): string {
 export function publicationUrl(config: Config): string {
   if (config.baseUrl) return trimSlash(config.baseUrl);
   if (config.publication) return `https://${config.publication}.substack.com`;
-  throw new UsageError('Pubblicazione non configurata: esegui "substack config init --publication <subdomain>"');
+  throw new UsageError(t('Publication not configured: run "substack config init --publication <subdomain>"',
+    'Pubblicazione non configurata: esegui "substack config init --publication <subdomain>"'));
 }
 
 export function globalUrl(config: Config): string {

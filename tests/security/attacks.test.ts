@@ -138,7 +138,7 @@ test('risposta enorme senza content-length: il trasferimento viene interrotto, n
     const id = JSON.parse(add.stdout).id as string;
     const r = await sb.run(['note', 'publish', id]);
     assert.equal(r.code, 6, r.stderr); // esito incerto: la richiesta è partita
-    assert.match(r.stderr, /troppo grande/);
+    assert.match(r.stderr, /too large/);
     for (let i = 0; i < 50 && sentBeforeClose < 0; i++) await new Promise((ok) => setTimeout(ok, 20));
     assert.ok(sentBeforeClose >= 0 && sentBeforeClose < 32 * 1024 * 1024, `byte inviati prima della chiusura: ${sentBeforeClose}`);
   } finally { await sb.cleanup(); await server.stop(); }

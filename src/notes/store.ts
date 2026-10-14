@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { markdownToDoc } from '../markdown/prosemirror.ts';
 import { StateError, UsageError } from '../util/errors.ts';
+import { t } from '../util/i18n.ts';
 import { atomicWriteFile, withLock } from '../util/fs.ts';
 import { hasForbiddenChars } from '../util/text.ts';
 
@@ -41,7 +42,7 @@ export class NoteStore {
   }
 
   private path(id: string): string {
-    if (!ID_RE.test(id)) throw new UsageError(`Id nota non valido: "${id}"`);
+    if (!ID_RE.test(id)) throw new UsageError(t(`Invalid note id: "${id}"`, `Id nota non valido: "${id}"`));
     return join(this.dir, `${id}.json`);
   }
 
@@ -60,7 +61,7 @@ export class NoteStore {
   }
 
   async add(text: string, now: Date): Promise<Note> {
-    if (text.length > 5000) throw new UsageError('La nota supera i 5000 caratteri');
+    if (text.length > 5000) throw new UsageError(t('The note is longer than 5000 characters', 'La nota supera i 5000 caratteri'));
     markdownToDoc(text); // valida subito: errori di Markdown emergono qui, non alla pubblicazione
     await mkdir(this.dir, { recursive: true, mode: 0o700 });
     const id = randomBytes(6).toString('hex');
@@ -73,17 +74,17 @@ export class NoteStore {
     try {
       raw = await readFile(path, 'utf8');
     } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw new UsageError(`Nota non trovata: ${id}`);
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw new UsageError(t(`Note not found: ${id}`, `Nota non trovata: ${id}`));
       throw e;
     }
     try {
       const note = NoteSchema.parse(JSON.parse(raw));
       // Un file copiato o rinominato a mano porterebbe le transizioni su un altro file (path(note.id)):
       // la stessa nota comparirebbe due volte in coda e run-due si fermerebbe sul duplicato.
-      if (note.id !== id) throw new Error('id diverso dal nome del file');
+      if (note.id !== id) throw new Error(t('id differs from the file name', 'id diverso dal nome del file'));
       return note;
     } catch {
-      throw new StateError(`File nota corrotto o modificato in modo non valido: ${path}`);
+      throw new StateError(t(`Note file corrupt or edited in an invalid way: ${path}`, `File nota corrotto o modificato in modo non valido: ${path}`));
     }
   }
 
@@ -110,13 +111,13 @@ export class NoteStore {
   private async transition(id: string, from: NoteStatus[], change: (n: Note) => Note): Promise<Note> {
     const note = await this.get(id);
     if (!from.includes(note.status)) {
-      throw new StateError(`Nota ${id}: operazione non consentita dallo stato "${note.status}"`);
+      throw new StateError(t(`Note ${id}: operation not allowed from status "${note.status}"`, `Nota ${id}: operazione non consentita dallo stato "${note.status}"`));
     }
     return this.write(change(note));
   }
 
   async schedule(id: string, at: Date, now: Date): Promise<Note> {
-    if (at.getTime() <= now.getTime()) throw new UsageError('La data di pubblicazione deve essere nel futuro');
+    if (at.getTime() <= now.getTime()) throw new UsageError(t('The publication date must be in the future', 'La data di pubblicazione deve essere nel futuro'));
     return this.transition(id, ['draft', 'scheduled'], (n) => {
       const { error: _e, ...rest } = n;
       return { ...rest, status: 'scheduled', publishAt: at.toISOString() };

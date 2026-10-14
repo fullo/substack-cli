@@ -6,7 +6,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { run } from '../../../src/cli/router.ts';
 import { loadConfig } from '../../../src/config/config.ts';
-import { AUTH_GUIDE } from '../../../src/auth/guide.ts';
+import { AUTH_GUIDE_EN, AUTH_GUIDE_IT } from '../../../src/auth/guide.ts';
 import { UsageError } from '../../../src/util/errors.ts';
 import { testContext } from '../../helpers/context.ts';
 import { withTmpDir } from '../../helpers/tmp.ts';
@@ -48,18 +48,18 @@ test('config.json non valido: il messaggio riporta solo la posizione, mai il con
     const file = join(dir, 'config.json');
     for (const [content, where] of [
       ['segreto=1', undefined],
-      ['{"publication": "p", segreto-nel-posto-sbagliato}', 'riga 1, colonna 22'],
-      ['{\n  "publication": "p"\n  "segreto-nel-posto-sbagliato": 1\n}', 'riga 3, colonna 3'],
-      ['{\n\n\n\n\n\n\n\n\n\n\n"a": 1 segreto}', 'riga 12, colonna 8'],
+      ['{"publication": "p", segreto-nel-posto-sbagliato}', 'line 1, column 22'],
+      ['{\n  "publication": "p"\n  "segreto-nel-posto-sbagliato": 1\n}', 'line 3, column 3'],
+      ['{\n\n\n\n\n\n\n\n\n\n\n"a": 1 segreto}', 'line 12, column 8'],
     ] as const) {
       await writeFile(file, content);
       await assert.rejects(loadConfig({ SUBSTACK_CLI_CONFIG_DIR: dir }), (e: unknown) => {
         assert.ok(e instanceof UsageError);
         assert.ok(!e.message.includes('segreto'), e.message);
         assert.ok(!e.message.includes('SUBSTACK_SID'), e.message);
-        assert.ok(e.message.startsWith(`config.json non è JSON valido (${file})`), e.message);
+        assert.ok(e.message.startsWith(`config.json is not valid JSON (${file})`), e.message);
         if (where) assert.ok(e.message.endsWith(where), e.message);
-        else assert.equal(e.message, `config.json non è JSON valido (${file})`);
+        else assert.equal(e.message, `config.json is not valid JSON (${file})`);
         return true;
       }, content);
     }
@@ -69,7 +69,7 @@ test('config.json non valido: il messaggio riporta solo la posizione, mai il con
 test('orologio di test attivo: avviso visibile su stderr a ogni comando', async () => {
   const active = testContext({ env: { SUBSTACK_ALLOW_TEST_CLOCK: '1', SUBSTACK_NOW: '2030-01-01T00:00:00Z' } });
   assert.equal(await run(['auth', 'guide'], active), 0);
-  assert.match(active.stderr.join('\n'), /orologio di test.*2030-01-01T00:00:00\.000Z/i);
+  assert.match(active.stderr.join('\n'), /test clock.*2030-01-01T00:00:00\.000Z/i);
   for (const env of [
     { SUBSTACK_NOW: '2030-01-01T00:00:00Z' },
     { SUBSTACK_ALLOW_TEST_CLOCK: '1' },
@@ -84,7 +84,7 @@ test('orologio di test attivo: avviso visibile su stderr a ogni comando', async 
 
 test('guida e README: nessun esempio con il cookie in chiaro su riga di comando, stesse istruzioni', async () => {
   const readme = await readFile('README.md', 'utf8');
-  for (const [name, text] of [['AUTH_GUIDE', AUTH_GUIDE], ['README', readme]] as const) {
+  for (const [name, text] of [['AUTH_GUIDE_EN', AUTH_GUIDE_EN], ['AUTH_GUIDE_IT', AUTH_GUIDE_IT], ['README', readme]] as const) {
     assert.ok(!/--from-literal=SUBSTACK_SID/.test(text), `${name}: --from-literal con il cookie`);
     assert.ok(!/echo ['"]?SUBSTACK_SID=/.test(text), `${name}: echo del cookie`);
     assert.ok(!/printf '%s' "<valore>"/.test(text), `${name}: cookie letterale in printf`);

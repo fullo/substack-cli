@@ -9,6 +9,11 @@ import { openaiCompatProvider } from '../../../src/generate/openai-compat.ts';
 import { ProviderError } from '../../../src/util/errors.ts';
 import { json, makeFetch } from '../../helpers/fetch.ts';
 import type { Call } from '../../helpers/fetch.ts';
+import { setLang } from '../../../src/util/i18n.ts';
+
+// Questi test verificano i messaggi esatti in italiano: ogni file gira in un processo a sé,
+// quindi la lingua fissata qui non tocca gli altri. L'inglese (default) è coperto dai test della CLI.
+setLang('it');
 
 const capture = (text: string, seen: GenerateRequest[]): Provider => ({
   async generate(req) { seen.push(req); return text; },

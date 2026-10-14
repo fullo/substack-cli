@@ -10,6 +10,11 @@ import {
 import { AuthError, UsageError } from '../../../src/util/errors.ts';
 import { clearSecrets, redact } from '../../../src/util/redact.ts';
 import { withTmpDir } from '../../helpers/tmp.ts';
+import { setLang } from '../../../src/util/i18n.ts';
+
+// Questi test verificano i messaggi esatti in italiano: ogni file gira in un processo a sé,
+// quindi la lingua fissata qui non tocca gli altri. L'inglese (default) è coperto dai test della CLI.
+setLang('it');
 
 beforeEach(() => clearSecrets());
 

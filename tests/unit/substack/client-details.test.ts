@@ -6,6 +6,11 @@ import { SubstackClient, parseDraftId } from '../../../src/substack/client.ts';
 import { ApiShapeError, AuthError, NetworkError, RateLimitError, UsageError } from '../../../src/util/errors.ts';
 import { json, makeFetch } from '../../helpers/fetch.ts';
 import type { Call, Route } from '../../helpers/fetch.ts';
+import { setLang } from '../../../src/util/i18n.ts';
+
+// Questi test verificano i messaggi esatti in italiano: ogni file gira in un processo a sé,
+// quindi la lingua fissata qui non tocca gli altri. L'inglese (default) è coperto dai test della CLI.
+setLang('it');
 
 const SID = 's%3AabcdefGHIJKLmnop1234567890.signature';
 const PUB = 'https://pub.example';

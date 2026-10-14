@@ -12,7 +12,7 @@ test('auth set da stdin salva il cookie (0600) e lo verifica; auth check ok', as
     delete (sb.env as Record<string, string | undefined>).SUBSTACK_SID;
     const set = await sb.run(['auth', 'set'], { stdin: `substack.sid=${VALID_SID};\n` });
     assert.equal(set.code, 0, set.stderr);
-    assert.match(set.stdout, /Sessione valida: Ada Test/);
+    assert.match(set.stdout, /Valid session: Ada Test/);
     const saved = JSON.parse(await readFile(join(sb.configDir, 'secrets.json'), 'utf8'));
     assert.equal(saved.sid, VALID_SID);
     const check = await sb.run(['auth', 'check', '--json']);

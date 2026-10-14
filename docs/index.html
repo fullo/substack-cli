@@ -47,11 +47,11 @@
       <figure class="galley" style="margin:0">
         <header><span>Draft no. 1</span><span>stdout</span></header>
         <pre tabindex="0"><code><span class="p">$</span> substack article draft post.md
-<span class="ok">Bozza creata: id 123456789</span>
+<span class="ok">Draft created: id 123456789</span>
 
 <span class="p">$</span> substack article publish 123456789
-<span class="c">Errore: Pubblicazione non interattiva: aggiungi
---yes per confermare esplicitamente</span>
+<span class="c">Error: Non-interactive publish: add --yes
+to confirm explicitly</span>
 
 <span class="p">$</span> substack note add "A short note"
 <span class="p">$</span> substack note schedule a1b2c3d4e5f6 \
@@ -98,11 +98,12 @@
 cd substack-cli
 npm ci
 npm run build</code></pre>
-            <p>You need Node 22.18 or later. The command is <code>node dist/cli/main.js</code>; in the examples below it's shortened to <code>substack</code> (<code>npm i -g .</code> turns it into a real command). The CLI's own messages and prompts are in Italian for now, as you'll see in some examples below.</p></li>
+            <p>You need Node 22.18 or later. The command is <code>node dist/cli/main.js</code>; in the examples below it's shortened to <code>substack</code> (<code>npm i -g .</code> turns it into a real command).</p></li>
 
           <li><h3>Set up your publication</h3>
-<pre tabindex="0"><code>substack config init --publication your-newsletter</code></pre>
-            <p>That's the part before <code>.substack.com</code>. <code>substack config show</code> prints the configuration in effect.</p></li>
+<pre tabindex="0"><code>substack config init --publication your-newsletter
+substack config init --publication your-newsletter --lang it --force   # messages in Italian</code></pre>
+            <p>That's the part before <code>.substack.com</code>. <code>substack config show</code> prints the configuration in effect. Messages are in English by default; <code>--lang it</code> (or the <code>SUBSTACK_LANG=it</code> environment variable, which takes precedence) switches them to Italian, confirmation words included.</p></li>
 
           <li><h3>Give the CLI your session cookie</h3>
 <pre tabindex="0"><code>substack auth guide    # step-by-step instructions
@@ -130,12 +131,12 @@ substack article list                      # list your drafts</code></pre>
           <li><h3>Fix a draft without opening the browser</h3>
 <pre tabindex="0"><code>substack article update 123456789 --title "A better title" --dry-run
 substack article update 123456789 --title "A better title"
-# Scrivi "aggiorna" per confermare:</code></pre>
+# Type "update" to confirm:</code></pre>
             <p>Only the fields that change are sent, and published posts are left alone. With <code>--file</code> the Markdown file replaces body, title and subtitle; try that on a test draft first, because it overwrites edits made in the web editor.</p></li>
 
           <li><h3>Publish, with a confirmation</h3>
 <pre tabindex="0"><code>substack article publish 123456789
-# Scrivi "pubblica" per confermare:
+# Type "publish" to confirm:
 
 substack article publish 123456789 --yes                 # from a script
 substack article publish 123456789 --yes --send-email    # also email your subscribers</code></pre>
@@ -155,9 +156,9 @@ llama-server -m model.gguf --port 8080
 substack config init --publication your-newsletter --force \
     --provider openai-compat --llm-base-url http://localhost:8080 --model local
 
-substack generate article --topic "What green coding is" --lang en --draft
-substack generate note --topic "A tip on green coding" --lang en</code></pre>
-            <p>With <code>--provider anthropic</code> the CLI uses Anthropic's API instead, with the <code>ANTHROPIC_API_KEY</code> environment variable. The generated article is saved locally and, with <code>--draft</code>, becomes an online draft; the note goes into the queue. Nothing is published.</p></li>
+substack generate article --topic "What green coding is" --draft
+substack generate note --topic "A tip on green coding"</code></pre>
+            <p>With <code>--provider anthropic</code> the CLI uses Anthropic's API instead, with the <code>ANTHROPIC_API_KEY</code> environment variable. Text is generated in the CLI's language unless you pass <code>--lang</code>. The generated article is saved locally and, with <code>--draft</code>, becomes an online draft; the note goes into the queue. Nothing is published.</p></li>
 
           <li><h3>On an always-on machine</h3>
 <pre tabindex="0"><code>docker build -f deploy/Dockerfile -t substack-cli:0.1.0 .
@@ -174,7 +175,7 @@ kubectl apply -f deploy/k3s/configmap.yaml -f deploy/k3s/cronjob.yaml</code></pr
         <h3 style="margin-top:34px">Command reference</h3>
         <div class="cmds" role="table" aria-label="Command reference">
           <div class="c" role="row"><code role="cell">auth guide · set · check · login</code><span role="cell">Get, store and check the cookie (<code>login</code> opens a browser, with Playwright installed separately).</span></div>
-          <div class="c" role="row"><code role="cell">config init · show</code><span role="cell">Create and show the configuration.</span></div>
+          <div class="c" role="row"><code role="cell">config init · show</code><span role="cell">Create and show the configuration (<code>--lang en|it</code>).</span></div>
           <div class="c" role="row"><code role="cell">article draft &lt;file|-&gt;</code><span role="cell">Create a draft from Markdown. <code>--dry-run</code> to try it.</span></div>
           <div class="c" role="row"><code role="cell">article list</code><span role="cell">List the most recent drafts.</span></div>
           <div class="c" role="row"><code role="cell">article update &lt;id&gt;</code><span role="cell">Edit an unpublished draft. <code>--title</code>, <code>--subtitle</code>, <code>--file</code>, <code>--yes</code>, <code>--dry-run</code>.</span></div>
@@ -220,7 +221,7 @@ substack notes run-due        # every minute, from cron</code></pre>
             <h3 data-n="D">A first draft from a local model</h3>
             <p>A model running on your own computer (llama.cpp, Ollama…) writes a first draft on the topic you give it. The result becomes an online draft to polish: nothing goes out without your review.</p>
 <pre tabindex="0"><code>substack generate article \
-    --topic "What green coding is" --lang en --draft</code></pre>
+    --topic "What green coding is" --draft</code></pre>
           </article>
         </div>
       </div>
@@ -246,7 +247,7 @@ substack notes run-due        # every minute, from cron</code></pre>
       <div>
         <h2 id="h-numbers">By the numbers</h2>
         <div class="figures" role="list">
-          <div role="listitem"><strong>391</strong><span>tests: unit, functional (the real CLI against fake servers) and security.</span></div>
+          <div role="listitem"><strong>398</strong><span>tests: unit, functional (the real CLI against fake servers) and security.</span></div>
           <div role="listitem"><strong>96%</strong><span>mutation score across 1523 mutants.</span></div>
           <div role="listitem"><strong>3</strong><span>runtime dependencies, with no transitive dependencies: <code>marked</code>, <code>yaml</code>, <code>zod</code>.</span></div>
           <div role="listitem"><strong>0</strong><span>known vulnerabilities in runtime dependencies (<code>npm audit</code>).</span></div>

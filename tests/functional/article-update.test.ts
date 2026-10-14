@@ -41,8 +41,8 @@ test('article update --title invia solo il titolo e verifica rileggendo la bozza
   try {
     const r = await sb.run(['article', 'update', '1001', '--title', '123 - Titolo con trattino', '--yes']);
     assert.equal(r.code, 0, r.stderr);
-    assert.match(r.stdout, /titolo: "123 — Titolo con lineetta" → "123 - Titolo con trattino"/);
-    assert.match(r.stdout, /Bozza 1001 aggiornata/);
+    assert.match(r.stdout, /title: "123 — Titolo con lineetta" → "123 - Titolo con trattino"/);
+    assert.match(r.stdout, /Draft 1001 updated/);
     const sent = puts(server);
     assert.equal(sent.length, 1);
     assert.deepEqual(JSON.parse(sent[0]!.body), { draft_title: '123 - Titolo con trattino' });
@@ -91,7 +91,7 @@ test('article update senza modifiche reali non invia il PUT', async () => {
   try {
     const r = await sb.run(['article', 'update', '1001', '--title', '123 — Titolo con lineetta', '--yes']);
     assert.equal(r.code, 0, r.stderr);
-    assert.match(r.stdout, /Nessuna modifica/);
+    assert.match(r.stdout, /No changes/);
     assert.equal(puts(server).length, 0);
   } finally { await done(); }
 });
@@ -111,7 +111,7 @@ test('article update --dry-run legge la bozza ma non invia il PUT', async () => 
   try {
     const r = await sb.run(['article', 'update', '1001', '--title', 'Nuovo', '--dry-run']);
     assert.equal(r.code, 0, r.stderr);
-    assert.match(r.stdout, /\[dry-run\] Aggiornamento della bozza 1001/);
+    assert.match(r.stdout, /\[dry-run\] Updating draft 1001/);
     assert.equal(puts(server).length, 0);
   } finally { await done(); }
 });
@@ -121,7 +121,7 @@ test('article update rifiuta una bozza già pubblicata', async () => {
   try {
     const r = await sb.run(['article', 'update', '1001', '--title', 'Nuovo', '--yes']);
     assert.equal(r.code, 64);
-    assert.match(r.stderr, /già pubblicata/);
+    assert.match(r.stderr, /already published/);
     assert.equal(puts(server).length, 0);
   } finally { await done(); }
 });
@@ -131,7 +131,7 @@ test('article update: se Substack accetta ma non applica il titolo → exit 3', 
   try {
     const r = await sb.run(['article', 'update', '1001', '--title', 'Nuovo', '--yes']);
     assert.equal(r.code, 3);
-    assert.match(r.stderr, /non risulta aggiornata \(titolo\)/);
+    assert.match(r.stderr, /does not look updated \(title\)/);
   } finally { await done(); }
 });
 

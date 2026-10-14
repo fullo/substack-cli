@@ -1,4 +1,5 @@
 import { UsageError } from '../util/errors.ts';
+import { t } from '../util/i18n.ts';
 
 interface PwPage { goto(url: string): Promise<unknown> }
 interface PwContext { newPage(): Promise<PwPage>; cookies(url: string): Promise<{ name: string; value: string }[]> }
@@ -12,7 +13,8 @@ export async function browserLogin(timeoutMs = 5 * 60_000): Promise<string> {
     pw = (await import(moduleName)) as Playwright;
   } catch {
     throw new UsageError(
-      'Playwright non è installato. Sul tuo PC esegui: npm install --no-save playwright && npx playwright install chromium, poi riprova.',
+      t('Playwright is not installed. On your computer run: npm install --no-save playwright && npx playwright install chromium, then try again.',
+        'Playwright non è installato. Sul tuo PC esegui: npm install --no-save playwright && npx playwright install chromium, poi riprova.'),
     );
   }
   const browser = await pw.chromium.launch({ headless: false });
@@ -26,7 +28,7 @@ export async function browserLogin(timeoutMs = 5 * 60_000): Promise<string> {
       if (cookie) return cookie.value;
       await new Promise((r) => setTimeout(r, 2000));
     }
-    throw new UsageError('Tempo scaduto in attesa del login');
+    throw new UsageError(t('Timed out waiting for sign-in', 'Tempo scaduto in attesa del login'));
   } finally {
     await browser.close();
   }

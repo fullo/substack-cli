@@ -51,13 +51,13 @@ test('crash/timeout durante la pubblicazione: nota in publishing, nessun doppio 
     const id = await addScheduled(sb, 'incerta');
     const first = await sb.run(['notes', 'run-due'], { env: T1 });
     assert.equal(first.code, 6, first.stderr);
-    assert.match(first.stdout, /INCERTA/);
+    assert.match(first.stdout, /UNCERTAIN/);
     const posts = server.count('POST', '/api/v1/comment/feed');
     assert.equal(posts, 1);
 
     const second = await sb.run(['notes', 'run-due'], { env: T1 });
     assert.equal(second.code, 6);
-    assert.match(second.stdout, /BLOCCATA/);
+    assert.match(second.stdout, /STUCK/);
     assert.equal(server.count('POST', '/api/v1/comment/feed'), posts); // nessun secondo tentativo
 
     assert.equal((await sb.run(['note', 'resolve', id, '--published'])).code, 0);

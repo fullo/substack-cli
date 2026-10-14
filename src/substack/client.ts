@@ -11,6 +11,7 @@ import type { z } from 'zod';
 import type { PMDoc } from '../markdown/prosemirror.ts';
 import { ApiShapeError, AuthError, NetworkError, RateLimitError, UsageError } from '../util/errors.ts';
 import { readBodyLimited } from '../util/http.ts';
+import { t } from '../util/i18n.ts';
 import { AnySchema, DraftCreatedSchema, DraftListSchema, DraftSchema, NoteCreatedSchema, ProfileSchema } from './schemas.ts';
 import type { Draft, Profile } from './schemas.ts';
 
@@ -32,7 +33,7 @@ export interface DraftPatch { title?: string; subtitle?: string; body?: PMDoc }
 
 export function parseDraftId(value: string | undefined): number {
   if (value === undefined || !/^[1-9][0-9]{0,14}$/.test(value)) {
-    throw new UsageError(`Id bozza non valido: "${value ?? ''}" (atteso un intero positivo)`);
+    throw new UsageError(t(`Invalid draft id: "${value ?? ''}" (expected a positive integer)`, `Id bozza non valido: "${value ?? ''}" (atteso un intero positivo)`));
   }
   return Number(value);
 }
@@ -91,28 +92,32 @@ export class SubstackClient {
       });
     } catch (e) {
       const host = new URL(url).host;
-      throw new NetworkError(`Richiesta a ${host}${path} fallita: ${this.scrub(e instanceof Error ? e.message : String(e))}`);
+      const reason = this.scrub(e instanceof Error ? e.message : String(e));
+      throw new NetworkError(t(`Request to ${host}${path} failed: ${reason}`, `Richiesta a ${host}${path} fallita: ${reason}`));
     }
 
     if (res.status >= 300 && res.status < 400) {
-      throw new NetworkError(`Redirect inatteso (${res.status}) su ${path}: non seguito per sicurezza`);
+      throw new NetworkError(t(`Unexpected redirect (${res.status}) on ${path}: not followed, for safety`, `Redirect inatteso (${res.status}) su ${path}: non seguito per sicurezza`));
     }
     if (res.status === 401 || res.status === 403) {
-      throw new AuthError(`Accesso negato (${res.status}) su ${path}: il cookie è scaduto o non valido. Esegui "substack auth guide".`);
+      throw new AuthError(t(`Access denied (${res.status}) on ${path}: the cookie is expired or invalid. Run "substack auth guide".`,
+        `Accesso negato (${res.status}) su ${path}: il cookie è scaduto o non valido. Esegui "substack auth guide".`));
     }
     if (res.status === 429) {
-      throw new RateLimitError(`Troppe richieste (429) su ${path}`, parseRetryAfter(res.headers.get('retry-after')));
+      throw new RateLimitError(t(`Too many requests (429) on ${path}`, `Troppe richieste (429) su ${path}`), parseRetryAfter(res.headers.get('retry-after')));
     }
-    if (res.status >= 500) throw new NetworkError(`Errore del server (${res.status}) su ${path}`);
+    if (res.status >= 500) throw new NetworkError(t(`Server error (${res.status}) on ${path}`, `Errore del server (${res.status}) su ${path}`));
     if (res.status < 200 || res.status >= 300) {
-      throw new ApiShapeError(`Stato HTTP inatteso ${res.status} su ${path}`, res.status);
+      throw new ApiShapeError(t(`Unexpected HTTP status ${res.status} on ${path}`, `Stato HTTP inatteso ${res.status} su ${path}`), res.status);
     }
 
     const body = await readBodyLimited(res);
-    if (!body.ok && body.reason === 'too-large') throw new ApiShapeError(`Risposta troppo grande su ${path}`, res.status);
+    if (!body.ok && body.reason === 'too-large') throw new ApiShapeError(t(`Response too large on ${path}`, `Risposta troppo grande su ${path}`), res.status);
     if (!body.ok) {
       // Timeout o connessione chiusa durante la lettura: errore di rete (riprovato se la richiesta è idempotente).
-      throw new NetworkError(`Lettura della risposta da ${new URL(url).host}${path} interrotta: ${this.scrub(body.error.message)}`);
+      const where = `${new URL(url).host}${path}`;
+      const reason = this.scrub(body.error.message);
+      throw new NetworkError(t(`Reading the response from ${where} was interrupted: ${reason}`, `Lettura della risposta da ${where} interrotta: ${reason}`));
     }
     const text = body.text;
 
@@ -121,13 +126,14 @@ export class SubstackClient {
       try {
         data = JSON.parse(text);
       } catch {
-        throw new ApiShapeError(`Risposta non JSON su ${path}`, res.status);
+        throw new ApiShapeError(t(`Non-JSON response on ${path}`, `Risposta non JSON su ${path}`), res.status);
       }
     }
     const parsed = schema.safeParse(data);
     if (!parsed.success) {
-      const issues = parsed.error.issues.map((i) => `${i.path.join('.') || '(radice)'}: ${i.message}`).join('; ');
-      throw new ApiShapeError(`Risposta inattesa su ${path} (l'API di Substack potrebbe essere cambiata): ${issues}`, res.status);
+      const issues = parsed.error.issues.map((i) => `${i.path.join('.') || t('(root)', '(radice)')}: ${i.message}`).join('; ');
+      throw new ApiShapeError(t(`Unexpected response on ${path} (Substack's API may have changed): ${issues}`,
+        `Risposta inattesa su ${path} (l'API di Substack potrebbe essere cambiata): ${issues}`), res.status);
     }
     return parsed.data;
   }
@@ -183,7 +189,7 @@ export class SubstackClient {
     if (patch.title !== undefined) body.draft_title = patch.title;
     if (patch.subtitle !== undefined) body.draft_subtitle = patch.subtitle;
     if (patch.body !== undefined) body.draft_body = JSON.stringify(patch.body);
-    if (Object.keys(body).length === 0) throw new UsageError('Nessun campo da aggiornare');
+    if (Object.keys(body).length === 0) throw new UsageError(t('No fields to update', 'Nessun campo da aggiornare'));
     await this.request(this.publicationUrl, `/api/v1/drafts/${id}`, { method: 'PUT', body }, AnySchema, true);
   }
 

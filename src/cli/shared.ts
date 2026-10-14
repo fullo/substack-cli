@@ -3,13 +3,15 @@ import { getSid } from '../auth/store.ts';
 import { globalUrl, loadConfig, publicationUrl } from '../config/config.ts';
 import { SubstackClient } from '../substack/client.ts';
 import { UsageError } from '../util/errors.ts';
+import { t } from '../util/i18n.ts';
 import type { Ctx } from './context.ts';
 
 export type Values = Record<string, string | boolean | (string | boolean)[] | undefined>;
 
 export interface Command {
   path: string;
-  summary: string;
+  /** Riepilogo per l'help, nelle due lingue: viene scelto quando l'help viene stampato. */
+  summary: { en: string; it: string };
   options: Record<string, { type: 'boolean' | 'string' }>;
   run(ctx: Ctx, args: { values: Values; positionals: string[] }): Promise<number>;
 }
@@ -43,7 +45,7 @@ export async function makeClient(ctx: Ctx): Promise<SubstackClient> {
 export async function readSource(ctx: Ctx, source: string): Promise<string> {
   if (source === '-') return ctx.readStdin();
   const st = await stat(source).catch(() => undefined);
-  if (!st || !st.isFile()) throw new UsageError(`File non trovato: ${source}`);
-  if (st.size > MAX_INPUT_BYTES) throw new UsageError('File troppo grande (max 1 MB)');
+  if (!st || !st.isFile()) throw new UsageError(t(`File not found: ${source}`, `File non trovato: ${source}`));
+  if (st.size > MAX_INPUT_BYTES) throw new UsageError(t('File too large (max 1 MB)', 'File troppo grande (max 1 MB)'));
   return readFile(source, 'utf8');
 }
