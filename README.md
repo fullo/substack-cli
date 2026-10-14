@@ -117,7 +117,13 @@ substack article schedule 123 --at 2026-10-09T09:00:00+02:00   # schedulazione n
 substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --yes        # senza prompt (obbligatorio da script/cron)
 substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --dry-run    # mostra titolo, data ed email senza schedulare
 substack article schedule 123 --cancel                          # annulla la schedulazione
+substack image upload copertina.png             # carica un'immagine (PNG, JPEG, GIF, WebP, max 10 MB) e stampa l'URL
+substack article draft articolo.md --cover copertina.png        # carica l'immagine, crea la bozza e imposta la copertina
+substack article update 123 --cover copertina.png --yes         # imposta la copertina da file (caricato dopo la conferma)
+substack article update 123 --cover https://substack-post-media.s3.amazonaws.com/... --yes   # oppure da un URL già caricato
 ```
+
+Caricamento immagini e copertina usano endpoint **non ancora confermati** (vedi `tests/fixtures/README.md`, sezione 10): dopo l'aggiornamento il CLI rilegge la bozza e, se la copertina non risulta impostata, esce con codice 3. Con `article draft --cover` l'immagine si carica prima di creare la bozza; se poi l'impostazione della copertina fallisce, il messaggio riporta l'id della bozza e il comando per ripetere solo la copertina.
 
 ### Note
 

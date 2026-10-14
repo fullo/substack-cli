@@ -6,13 +6,17 @@
 //                   GET  /api/v1/post_management/drafts?offset&limit&order_by&order_direction
 //                   POST /api/v1/drafts/{id}/publish
 //                   POST /api/v1/drafts/{id}/scheduled_release
-//                   PUT  /api/v1/drafts/{id}   (aggiornamento parziale confermato per draft_title)
+//                   PUT  /api/v1/drafts/{id}   (aggiornamento parziale confermato per draft_title;
+//                                               cover_image NON CONFERMATO)
+//                   POST /api/v1/image         (caricamento immagine, NON CONFERMATO: corpo { image: data URI })
 import type { z } from 'zod';
 import type { PMDoc } from '../markdown/prosemirror.ts';
 import { ApiShapeError, AuthError, NetworkError, RateLimitError, UsageError } from '../util/errors.ts';
 import { readBodyLimited } from '../util/http.ts';
 import { t } from '../util/i18n.ts';
-import { AnySchema, DraftCreatedSchema, DraftListSchema, DraftSchema, NoteCreatedSchema, ProfileSchema } from './schemas.ts';
+import { AnySchema, DraftCreatedSchema, DraftListSchema, DraftSchema, ImageUploadedSchema, NoteCreatedSchema, ProfileSchema } from './schemas.ts';
+import { parseImageUrl, toDataUri } from '../util/image.ts';
+import type { ImageFile } from '../util/image.ts';
 import type { Draft, Profile } from './schemas.ts';
 
 const USER_AGENT = 'substack-cli/0.1 (+https://github.com/local/substack-cli)';
@@ -29,7 +33,7 @@ export interface ClientOptions {
 
 interface RequestInitLite { method: 'GET' | 'POST' | 'PUT'; body?: unknown }
 
-export interface DraftPatch { title?: string; subtitle?: string; body?: PMDoc }
+export interface DraftPatch { title?: string; subtitle?: string; body?: PMDoc; coverImage?: string }
 
 export function parseDraftId(value: string | undefined): number {
   if (value === undefined || !/^[1-9][0-9]{0,14}$/.test(value)) {
@@ -189,8 +193,25 @@ export class SubstackClient {
     if (patch.title !== undefined) body.draft_title = patch.title;
     if (patch.subtitle !== undefined) body.draft_subtitle = patch.subtitle;
     if (patch.body !== undefined) body.draft_body = JSON.stringify(patch.body);
+    if (patch.coverImage !== undefined) body.cover_image = parseImageUrl(patch.coverImage);
     if (Object.keys(body).length === 0) throw new UsageError(t('No fields to update', 'Nessun campo da aggiornare'));
     await this.request(this.publicationUrl, `/api/v1/drafts/${id}`, { method: 'PUT', body }, AnySchema, true);
+  }
+
+  /**
+   * Carica un'immagine sul CDN di Substack e ne restituisce l'URL (endpoint NON CONFERMATO, design 2026-10-14).
+   * Non idempotente: ogni chiamata crea un nuovo file, quindi nessun retry automatico.
+   */
+  async uploadImage(img: ImageFile): Promise<{ url: string }> {
+    const r = await this.request(this.publicationUrl, '/api/v1/image', {
+      method: 'POST',
+      body: { image: toDataUri(img) },
+    }, ImageUploadedSchema, false);
+    let url: string;
+    try { url = parseImageUrl(r.url); } catch {
+      throw new ApiShapeError(t('Unexpected image URL in the upload response', "URL dell'immagine inatteso nella risposta al caricamento"));
+    }
+    return { url };
   }
 
   async listDrafts(limit = 25): Promise<Draft[]> {
