@@ -1,11 +1,12 @@
 import type { ZodIssue } from 'zod';
+import { t } from './i18n.ts';
 
 const MAX_LISTED = 5;
 const MAX_ISSUES = 10;
 
 function shortList(items: string[]): string {
   const shown = items.slice(0, MAX_LISTED).map((k) => (k.length > 40 ? `${k.slice(0, 40)}…` : k)).join(', ');
-  return items.length > MAX_LISTED ? `${shown} (e altre ${items.length - MAX_LISTED})` : shown;
+  return items.length > MAX_LISTED ? t(`${shown} (and ${items.length - MAX_LISTED} more)`, `${shown} (e altre ${items.length - MAX_LISTED})`) : shown;
 }
 
 /**
@@ -14,10 +15,10 @@ function shortList(items: string[]): string {
  */
 export function formatIssues(issues: ZodIssue[]): string {
   const parts = issues.slice(0, MAX_ISSUES).map((i) => {
-    const where = i.path.join('.') || '(radice)';
-    if (i.code === 'unrecognized_keys') return `${where}: chiavi non ammesse: ${shortList(i.keys)}`;
+    const where = i.path.join('.') || t('(root)', '(radice)');
+    if (i.code === 'unrecognized_keys') return t(`${where}: keys not allowed: ${shortList(i.keys)}`, `${where}: chiavi non ammesse: ${shortList(i.keys)}`);
     return `${where}: ${i.message}`;
   });
-  if (issues.length > MAX_ISSUES) parts.push(`(e altri ${issues.length - MAX_ISSUES} problemi)`);
+  if (issues.length > MAX_ISSUES) parts.push(t(`(and ${issues.length - MAX_ISSUES} more issues)`, `(e altri ${issues.length - MAX_ISSUES} problemi)`));
   return parts.join('; ');
 }

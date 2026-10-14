@@ -113,7 +113,7 @@ test('SUBSTACK_DEBUG=1 non stampa il cookie nemmeno negli stack trace', async ()
     await writeFile(trap, 'non una cartella');
     const r = await sb.run(['notes', 'run-due'], { env: { SUBSTACK_DEBUG: '1', SUBSTACK_CLI_DATA_DIR: trap } });
     assert.equal(r.code, 1, r.stderr);
-    assert.match(r.stderr, /Errore interno/);
+    assert.match(r.stderr, /Internal error/);
     assert.match(r.stderr, /\n\s+at /, 'con SUBSTACK_DEBUG=1 lo stack deve essere stampato');
     assert.match(r.stderr, /\[REDACTED\]/);
     assertNoSid(r, 'run-due debug');

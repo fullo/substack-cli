@@ -4,6 +4,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseArticle } from '../../../src/markdown/frontmatter.ts';
 import { UsageError } from '../../../src/util/errors.ts';
+import { setLang } from '../../../src/util/i18n.ts';
+
+// Questi test verificano i messaggi esatti in italiano: ogni file gira in un processo a sé,
+// quindi la lingua fissata qui non tocca gli altri. L'inglese (default) è coperto dai test della CLI.
+setLang('it');
 
 const usage = (src: string, message: string | RegExp) =>
   assert.throws(() => parseArticle(src), (e: unknown) =>

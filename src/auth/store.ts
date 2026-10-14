@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { configDir } from '../config/config.ts';
 import { AuthError, UsageError } from '../util/errors.ts';
+import { t } from '../util/i18n.ts';
 import { atomicWriteFile, readTextIfExists } from '../util/fs.ts';
 import { registerSecret } from '../util/redact.ts';
 
@@ -22,7 +23,8 @@ export function normalizeSid(input: string): string {
   const value = input.trim().replace(/^substack\.sid=/i, '').replace(/;$/, '').trim();
   if (!SID_RE.test(value)) {
     throw new UsageError(
-      'Cookie non valido: copia solo il valore di "substack.sid" (nessuno spazio, punto e virgola o a capo). Vedi "substack auth guide".',
+      t('Invalid cookie: copy only the value of "substack.sid" (no spaces, semicolons or line breaks). See "substack auth guide".',
+        'Cookie non valido: copia solo il valore di "substack.sid" (nessuno spazio, punto e virgola o a capo). Vedi "substack auth guide".'),
     );
   }
   return value;
@@ -35,7 +37,8 @@ export function normalizeApiKey(input: string): string {
   const value = input.trim();
   if (!API_KEY_RE.test(value)) {
     throw new UsageError(
-      'Chiave API non valida: deve essere di 8-512 caratteri ASCII stampabili, senza spazi né a capo.',
+      t('Invalid API key: it must be 8-512 printable ASCII characters, with no spaces or line breaks.',
+        'Chiave API non valida: deve essere di 8-512 caratteri ASCII stampabili, senza spazi né a capo.'),
     );
   }
   return value;
@@ -52,7 +55,8 @@ async function readSecrets(env: NodeJS.ProcessEnv): Promise<Secrets> {
   try {
     return SecretsSchema.parse(JSON.parse(text));
   } catch {
-    throw new UsageError(`File dei segreti non valido: ${path} (rimuovilo e ripeti "substack auth set")`);
+    throw new UsageError(t(`Invalid secrets file: ${path} (remove it and run "substack auth set" again)`,
+      `File dei segreti non valido: ${path} (rimuovilo e ripeti "substack auth set")`));
   }
 }
 
@@ -64,7 +68,8 @@ function fromEnv(value: string | undefined): string | undefined {
 export async function getSid(env: NodeJS.ProcessEnv): Promise<string> {
   const raw = fromEnv(env.SUBSTACK_SID) ?? (await readSecrets(env)).sid;
   if (!raw) {
-    throw new AuthError('Cookie di sessione non configurato. Esegui "substack auth guide" per le istruzioni.');
+    throw new AuthError(t('Session cookie not configured. Run "substack auth guide" for instructions.',
+      'Cookie di sessione non configurato. Esegui "substack auth guide" per le istruzioni.'));
   }
   const sid = normalizeSid(raw);
   registerSecret(sid);
@@ -97,7 +102,8 @@ export async function secretsPermissionWarning(env: NodeJS.ProcessEnv): Promise<
   if (process.platform === 'win32') return undefined;
   const st = await stat(secretsPath(env)).catch(() => undefined);
   if (st && (st.mode & 0o077) !== 0) {
-    return `Il file ${secretsPath(env)} è leggibile da altri utenti: imposta i permessi a 0600 (chmod 600).`;
+    return t(`The file ${secretsPath(env)} is readable by other users: set its permissions to 0600 (chmod 600).`,
+      `Il file ${secretsPath(env)} è leggibile da altri utenti: imposta i permessi a 0600 (chmod 600).`);
   }
   return undefined;
 }

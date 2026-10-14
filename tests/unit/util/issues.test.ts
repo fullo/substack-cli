@@ -2,6 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { ZodIssue } from 'zod';
 import { formatIssues } from '../../../src/util/issues.ts';
+import { setLang } from '../../../src/util/i18n.ts';
+
+// Questi test verificano i messaggi esatti in italiano: ogni file gira in un processo a sé,
+// quindi la lingua fissata qui non tocca gli altri. L'inglese (default) è coperto dai test della CLI.
+setLang('it');
 
 const unknownKeys = (keys: string[], path: (string | number)[] = []): ZodIssue =>
   ({ code: 'unrecognized_keys', keys, path, message: 'x' }) as ZodIssue;

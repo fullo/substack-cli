@@ -15,9 +15,9 @@ test('article update interattivo: riepilogo una sola volta (stderr), poi solo l\
     if (c.url.endsWith('/api/v1/drafts/7') && c.init.method === 'PUT') title = JSON.parse(String(c.init.body)).draft_title;
     return json({ id: 7, draft_title: title });
   }, calls);
-  const ctx = testContext({ env: ENV, isInteractive: true, fetchImpl, prompt: async () => 'aggiorna' });
+  const ctx = testContext({ env: ENV, isInteractive: true, fetchImpl, prompt: async () => 'update' });
   const code = await run(['article', 'update', '7', '--title', 'Nuovo'], ctx);
   assert.equal(code, 0, ctx.stderr.join('\n'));
-  assert.match(ctx.stderr.join('\n'), /titolo: "Vecchio" → "Nuovo"/);
-  assert.deepEqual(ctx.stdout, ['Bozza 7 aggiornata']);
+  assert.match(ctx.stderr.join('\n'), /title: "Vecchio" → "Nuovo"/);
+  assert.deepEqual(ctx.stdout, ['Draft 7 updated']);
 });

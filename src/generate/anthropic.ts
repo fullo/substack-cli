@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ProviderError } from '../util/errors.ts';
+import { t } from '../util/i18n.ts';
 import { readBodyLimited } from '../util/http.ts';
 import type { GenerateRequest, Provider } from './provider.ts';
 
@@ -35,21 +36,21 @@ export function anthropicProvider(opts: AnthropicOptions): Provider {
           }),
         });
       } catch (e) {
-        throw new ProviderError(`Chiamata ad Anthropic fallita: ${(e as Error).message}`);
+        throw new ProviderError(t(`Call to Anthropic failed: ${(e as Error).message}`, `Chiamata ad Anthropic fallita: ${(e as Error).message}`));
       }
-      if (!res.ok) throw new ProviderError(`Anthropic ha risposto con stato ${res.status}`);
+      if (!res.ok) throw new ProviderError(t(`Anthropic responded with status ${res.status}`, `Anthropic ha risposto con stato ${res.status}`));
       const body = await readBodyLimited(res);
-      if (!body.ok && body.reason === 'too-large') throw new ProviderError('Risposta di Anthropic troppo grande (max 5 MB)');
-      if (!body.ok) throw new ProviderError(`Lettura della risposta di Anthropic interrotta: ${body.error.message}`);
+      if (!body.ok && body.reason === 'too-large') throw new ProviderError(t('Anthropic response too large (max 5 MB)', 'Risposta di Anthropic troppo grande (max 5 MB)'));
+      if (!body.ok) throw new ProviderError(t(`Reading Anthropic's response was interrupted: ${body.error.message}`, `Lettura della risposta di Anthropic interrotta: ${body.error.message}`));
       let data: unknown;
       try {
         data = JSON.parse(body.text);
       } catch {
-        throw new ProviderError('Risposta di Anthropic non JSON');
+        throw new ProviderError(t('Non-JSON response from Anthropic', 'Risposta di Anthropic non JSON'));
       }
       const parsed = ResponseSchema.safeParse(data);
       const text = parsed.success ? parsed.data.content.map((c) => c.text ?? '').join('') : '';
-      if (!text) throw new ProviderError('Risposta di Anthropic senza testo');
+      if (!text) throw new ProviderError(t('Anthropic response without text', 'Risposta di Anthropic senza testo'));
       return text;
     },
   };

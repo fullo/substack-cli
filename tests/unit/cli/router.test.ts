@@ -19,7 +19,7 @@ test('help e nessun argomento stampano l\'elenco dei comandi ed escono con 0', a
 test('comando sconosciuto → 64', async () => {
   const ctx = testContext();
   assert.equal(await run(['foo', 'bar'], ctx), 64);
-  assert.match(ctx.stderr.join('\n'), /sconosciuto/);
+  assert.match(ctx.stderr.join('\n'), /Unknown command/);
   assert.equal(await run(['article'], testContext()), 64);
 });
 

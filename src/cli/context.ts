@@ -3,6 +3,7 @@ import { currentTime } from '../util/clock.ts';
 import { UsageError } from '../util/errors.ts';
 import { redact } from '../util/redact.ts';
 import { escapeForTerminal } from '../util/text.ts';
+import { t } from '../util/i18n.ts';
 
 export interface Ctx {
   env: NodeJS.ProcessEnv;
@@ -24,7 +25,7 @@ async function readAllStdin(): Promise<string> {
   let size = 0;
   for await (const chunk of process.stdin) {
     size += (chunk as Buffer).length;
-    if (size > MAX_STDIN) throw new UsageError('Input da stdin troppo grande (max 2 MB)');
+    if (size > MAX_STDIN) throw new UsageError(t('Input from stdin too large (max 2 MB)', 'Input da stdin troppo grande (max 2 MB)'));
     chunks.push(chunk as Buffer);
   }
   return Buffer.concat(chunks).toString('utf8');
@@ -53,7 +54,7 @@ function promptHidden(question: string): Promise<string> {
         }
         if (c === '\u0003') {
           cleanup();
-          reject(new UsageError('Interrotto'));
+          reject(new UsageError(t('Interrupted', 'Interrotto')));
           return;
         }
         buf = c === '\u007f' || c === '\b' ? buf.slice(0, -1) : buf + c;

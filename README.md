@@ -27,6 +27,7 @@ I file stanno in `~/.config/substack-cli` (config e segreti) e `~/.local/share/s
 
 ```bash
 substack config init --publication miapubblicazione
+substack config init --publication miapubblicazione --lang it --force   # messaggi in italiano
 # oppure con un LLM locale:
 substack config init --publication miapubblicazione \
   --provider openai-compat --llm-base-url http://localhost:8080 --model locale
@@ -34,6 +35,8 @@ substack config show        # configurazione effettiva, senza segreti
 ```
 
 `--publication` è il sottodominio (la parte prima di `.substack.com`). `config init` non sovrascrive un file esistente senza `--force`.
+
+**Lingua.** I messaggi del CLI sono in inglese di default. Con `"lang": "it"` in `config.json` (cioè `config init --lang it`) oppure con `SUBSTACK_LANG=it` passano all'italiano; la variabile ha la precedenza sul file. Seguono la lingua anche le parole da digitare per confermare (`publish`/`pubblica`, `schedule`/`programma`, `update`/`aggiorna`) e la lingua predefinita del testo generato con `generate` (si cambia con `--lang`). Un valore di `SUBSTACK_LANG` diverso da `en` o `it` produce un avviso e lascia l'inglese.
 
 Variabili d'ambiente (hanno la precedenza su `secrets.json`; valori vuoti equivalgono a non impostati):
 
@@ -44,6 +47,7 @@ Variabili d'ambiente (hanno la precedenza su `secrets.json`; valori vuoti equiva
 | `SUBSTACK_LLM_API_KEY` | chiave per il server `openai-compat`, se la richiede |
 | `SUBSTACK_CLI_CONFIG_DIR` | cartella di `config.json` e `secrets.json` |
 | `SUBSTACK_CLI_DATA_DIR` | cartella dei dati (coda note, `drafts/`) |
+| `SUBSTACK_LANG` | lingua dei messaggi: `en` (default) o `it`; prevale su `lang` in `config.json` |
 
 Solo per i test: `SUBSTACK_NOW` (data ISO) sostituisce l'orologio, ma soltanto se anche `SUBSTACK_ALLOW_TEST_CLOCK=1`. Quando l'orologio di test è attivo ogni comando stampa un avviso su stderr: non impostare queste variabili in produzione (anticiperebbero o ritarderebbero la pubblicazione delle note).
 
@@ -61,7 +65,7 @@ Substack non ha API key: il CLI usa il cookie `substack.sid` del tuo account. Tr
    - a) interattivo (il valore non viene mostrato): `substack auth set`
    - b) da stdin (utile via SSH o in uno script): `read -rs SID && printf '%s' "$SID" | substack auth set; unset SID`
    - c) variabile d'ambiente (senza file): `read -rs SUBSTACK_SID && export SUBSTACK_SID`
-6. Verifica: `substack auth check`. Se risponde "Sessione valida", sei a posto.
+6. Verifica: `substack auth check`. Se risponde "Valid session" ("Sessione valida" in italiano), sei a posto.
 
 **Senza poter caricare file sulla VM:** usa (b) o (c) da una sessione SSH.
 
@@ -102,14 +106,14 @@ substack article draft articolo.md              # crea la bozza online; stampa i
 substack article draft articolo.md --dry-run    # valida e converte senza chiamare Substack
 cat articolo.md | substack article draft -      # da stdin
 substack article list                           # bozze più recenti
-substack article update 123 --title "123 - Nuovo titolo"       # cambia solo il titolo: chiede conferma ("aggiorna")
+substack article update 123 --title "123 - Nuovo titolo"       # cambia solo il titolo: chiede conferma ("update", o "aggiorna" in italiano)
 substack article update 123 --subtitle ""                      # cancella il sottotitolo
 substack article update 123 --file articolo.md --yes           # sostituisce corpo, titolo e sottotitolo dal file
 substack article update 123 --title "..." --dry-run            # mostra il prima/dopo senza modificare
 substack article publish 123                    # chiede conferma
 substack article publish 123 --yes              # pubblica senza email
 substack article publish 123 --yes --send-email # pubblica e invia l'email agli iscritti
-substack article schedule 123 --at 2026-10-09T09:00:00+02:00   # schedulazione nativa Substack: chiede conferma ("programma")
+substack article schedule 123 --at 2026-10-09T09:00:00+02:00   # schedulazione nativa Substack: chiede conferma ("schedule", o "programma" in italiano)
 substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --yes        # senza prompt (obbligatorio da script/cron)
 substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --dry-run    # mostra titolo, data ed email senza schedulare
 substack article schedule 123 --cancel                          # annulla la schedulazione

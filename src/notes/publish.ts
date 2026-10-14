@@ -1,6 +1,7 @@
 import { markdownToDoc } from '../markdown/prosemirror.ts';
 import type { PMDoc } from '../markdown/prosemirror.ts';
 import { ApiShapeError, AuthError, RateLimitError, StateError, UsageError } from '../util/errors.ts';
+import { t } from '../util/i18n.ts';
 import { withLock } from '../util/fs.ts';
 import type { Note, NoteStore } from './store.ts';
 
@@ -42,7 +43,7 @@ export async function publishOne(
       else if (kind === 'fail') await store.fail(id, error.message);
       else await store.markUncertain(id, error.message);
     } catch (recordErr) {
-      return { kind: 'uncertain', error: new StateError(`${error.message}; stato locale non aggiornato: ${asError(recordErr).message}`) };
+      return { kind: 'uncertain', error: new StateError(t(`${error.message}; local state not updated: ${asError(recordErr).message}`, `${error.message}; stato locale non aggiornato: ${asError(recordErr).message}`)) };
     }
     if (kind === 'revert') return { kind: 'reverted', error };
     if (kind === 'fail') return { kind: 'failed', error };
@@ -54,7 +55,8 @@ export async function publishOne(
     // Pubblicata davvero: non va classificata come errore di invio (né riprovata).
     return {
       kind: 'uncertain',
-      error: new StateError(`Nota pubblicata su Substack (id ${result.id}) ma stato locale non aggiornato: ${asError(e).message}`),
+      error: new StateError(t(`Note published on Substack (id ${result.id}) but local state not updated: ${asError(e).message}`,
+        `Nota pubblicata su Substack (id ${result.id}) ma stato locale non aggiornato: ${asError(e).message}`)),
     };
   }
   return { kind: 'published', substackId: result.id };
@@ -92,8 +94,9 @@ export async function runDue(
       try {
         await lock.refresh();
       } catch (e) {
-        const done = result.published.length ? ` Già pubblicate: ${result.published.join(', ')}.` : '';
-        throw new StateError(`${asError(e).message}: run-due interrotto.${done}`);
+        const list = result.published.join(', ');
+        const done = result.published.length ? t(` Already published: ${list}.`, ` Già pubblicate: ${list}.`) : '';
+        throw new StateError(t(`${asError(e).message}: run-due stopped.${done}`, `${asError(e).message}: run-due interrotto.${done}`));
       }
       // Per ogni nota, un errore prima dell'invio (file sparito, corrotto, stato cambiato) non ferma
       // il giro: la nota viene annotata e si prosegue con le altre.

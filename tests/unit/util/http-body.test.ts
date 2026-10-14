@@ -9,6 +9,11 @@ import { openaiCompatProvider } from '../../../src/generate/openai-compat.ts';
 import { NetworkError, ProviderError } from '../../../src/util/errors.ts';
 import { FakeServer } from '../../helpers/fake-server.ts';
 import { makeFetch } from '../../helpers/fetch.ts';
+import { setLang } from '../../../src/util/i18n.ts';
+
+// Questi test verificano i messaggi esatti in italiano: ogni file gira in un processo a sé,
+// quindi la lingua fissata qui non tocca gli altri. L'inglese (default) è coperto dai test della CLI.
+setLang('it');
 
 const SID = 's%3AabcdefGHIJKLmnop1234567890.signature';
 const REQ = { system: 's', prompt: 'p', maxTokens: 10 };

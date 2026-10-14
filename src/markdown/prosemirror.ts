@@ -1,6 +1,8 @@
 import { Lexer, Tokenizer, getDefaults } from 'marked';
 import type { Links, Token, Tokens } from 'marked';
 import { UsageError } from '../util/errors.ts';
+// `t` è già usato come nome di variabile per i token di marked.
+import { t as tr } from '../util/i18n.ts';
 import { hasForbiddenChars } from '../util/text.ts';
 
 export interface PMMark { type: string; attrs?: Record<string, unknown> }
@@ -44,15 +46,16 @@ export function unescapeHtml(s: string): string {
   return s.replace(/&(amp|lt|gt|quot|#39);/g, (_m, e: string) => map[e] ?? '');
 }
 
-function safeUrl(href: string, allowed: Set<string>, what: string): string {
+function safeUrl(href: string, allowed: Set<string>, kind: 'link' | 'image'): string {
+  const what = kind === 'link' ? tr('Link', 'Link') : tr('Image', 'Immagine');
   let url: URL;
   try {
     url = new URL(href);
   } catch {
-    throw new UsageError(`${what} non valido (serve un URL assoluto): ${href}`);
+    throw new UsageError(tr(`Invalid ${what.toLowerCase()} (an absolute URL is required): ${href}`, `${what} non valido (serve un URL assoluto): ${href}`));
   }
   if (!allowed.has(url.protocol)) {
-    throw new UsageError(`${what} con schema non consentito (${url.protocol}): ${href}`);
+    throw new UsageError(tr(`${what} with a scheme that is not allowed (${url.protocol}): ${href}`, `${what} con schema non consentito (${url.protocol}): ${href}`));
   }
   return url.href;
 }
@@ -63,7 +66,7 @@ function pushText(out: PMNode[], text: string, marks: PMMark[]): void {
 }
 
 function guard(depth: number): void {
-  if (depth > MAX_DEPTH) throw new UsageError('Markdown troppo annidato');
+  if (depth > MAX_DEPTH) throw new UsageError(tr('Markdown nested too deeply', 'Markdown troppo annidato'));
 }
 
 function inline(tokens: Token[], marks: PMMark[], depth: number): PMNode[] {
@@ -90,7 +93,7 @@ function inline(tokens: Token[], marks: PMMark[], depth: number): PMNode[] {
         break;
       case 'link': {
         const l = t as Tokens.Link;
-        const href = safeUrl(l.href, LINK_SCHEMES, 'Link');
+        const href = safeUrl(l.href, LINK_SCHEMES, 'link');
         out.push(...inline(l.tokens, [...marks, { type: 'link', attrs: { href } }], depth + 1));
         break;
       }
@@ -98,9 +101,9 @@ function inline(tokens: Token[], marks: PMMark[], depth: number): PMNode[] {
         out.push({ type: NODE.hardBreak });
         break;
       case 'image':
-        throw new UsageError('Immagine inline non supportata: mettila in un paragrafo a sé');
+        throw new UsageError(tr('Inline images are not supported: put the image in a paragraph of its own', 'Immagine inline non supportata: mettila in un paragrafo a sé'));
       default:
-        throw new UsageError(`Markdown non supportato (inline): ${t.type}`);
+        throw new UsageError(tr(`Unsupported Markdown (inline): ${t.type}`, `Markdown non supportato (inline): ${t.type}`));
     }
   }
   return out;
@@ -110,7 +113,7 @@ function paragraph(tokens: Token[], depth: number): PMNode | undefined {
   const meaningful = tokens.filter((t) => !(t.type === 'text' && (t as Tokens.Text).text.trim() === ''));
   if (meaningful.length === 1 && meaningful[0]!.type === 'image') {
     const img = meaningful[0] as Tokens.Image;
-    return NODE.image(safeUrl(img.href, IMAGE_SCHEMES, 'Immagine'), unescapeHtml(img.text) || null);
+    return NODE.image(safeUrl(img.href, IMAGE_SCHEMES, 'image'), unescapeHtml(img.text) || null);
   }
   const content = inline(tokens, [], depth + 1);
   return content.length > 0 ? { type: NODE.paragraph, content } : undefined;
@@ -125,7 +128,7 @@ function blocks(tokens: Token[], depth: number): PMNode[] {
         break;
       case 'heading': {
         const h = t as Tokens.Heading;
-        if (h.depth > 4) throw new UsageError(`Titoli supportati solo fino al livello 4 (trovato h${h.depth})`);
+        if (h.depth > 4) throw new UsageError(tr(`Headings are only supported up to level 4 (found h${h.depth})`, `Titoli supportati solo fino al livello 4 (trovato h${h.depth})`));
         const content = inline(h.tokens, [], depth + 1);
         if (content.length > 0) out.push({ type: NODE.heading, attrs: { level: h.depth }, content });
         break;
@@ -141,7 +144,7 @@ function blocks(tokens: Token[], depth: number): PMNode[] {
       case 'list': {
         const l = t as Tokens.List;
         const items = l.items.map((it): PMNode => {
-          if (it.task) throw new UsageError('Le task list non sono supportate');
+          if (it.task) throw new UsageError(tr('Task lists are not supported', 'Le task list non sono supportate'));
           return { type: NODE.listItem, content: blocks(it.tokens, depth + 1) };
         });
         out.push({ type: l.ordered ? NODE.orderedList : NODE.bulletList, content: items });
@@ -163,7 +166,7 @@ function blocks(tokens: Token[], depth: number): PMNode[] {
         out.push({ type: NODE.rule });
         break;
       default:
-        throw new UsageError(`Markdown non supportato: ${t.type}`);
+        throw new UsageError(tr(`Unsupported Markdown: ${t.type}`, `Markdown non supportato: ${t.type}`));
     }
   }
   return out;
@@ -188,7 +191,8 @@ class GuardedTokenizer extends Tokenizer {
     this.work += amount;
     if (this.work > INLINE_WORK_BUDGET) {
       throw new UsageError(
-        'Markdown troppo complesso da elaborare (troppi delimitatori *, _, ~ o ! non chiusi): semplifica il testo',
+        tr('Markdown too complex to process (too many unclosed *, _, ~ or ! delimiters): simplify the text',
+          'Markdown troppo complesso da elaborare (troppi delimitatori *, _, ~ o ! non chiusi): semplifica il testo'),
       );
     }
   }
@@ -196,7 +200,7 @@ class GuardedTokenizer extends Tokenizer {
   // Costrutti che ri-tokenizzano ricorsivamente il proprio contenuto: ogni livello costa O(n),
   // quindi l'annidamento va fermato PRIMA di scendere (non dopo, quando il lavoro è già fatto).
   private nested<T>(run: () => T): T {
-    if (++this.depth > MAX_LEX_DEPTH) throw new UsageError('Markdown troppo annidato');
+    if (++this.depth > MAX_LEX_DEPTH) throw new UsageError(tr('Markdown nested too deeply', 'Markdown troppo annidato'));
     try {
       return run();
     } finally {
@@ -270,10 +274,10 @@ function lex(markdown: string): Token[] {
 
 export function markdownToDoc(markdown: string): PMDoc {
   if (Buffer.byteLength(markdown, 'utf8') > MAX_INPUT_BYTES) {
-    throw new UsageError('Contenuto troppo grande (max 300 KB)');
+    throw new UsageError(tr('Content too large (max 300 KB)', 'Contenuto troppo grande (max 300 KB)'));
   }
   if (hasForbiddenChars(markdown)) {
-    throw new UsageError('Il testo contiene caratteri di controllo o di direzione non ammessi');
+    throw new UsageError(tr('The text contains control or direction characters that are not allowed', 'Il testo contiene caratteri di controllo o di direzione non ammessi'));
   }
   let content: PMNode[];
   try {
@@ -281,8 +285,9 @@ export function markdownToDoc(markdown: string): PMDoc {
   } catch (e) {
     if (e instanceof UsageError) throw e;
     // Qualsiasi altro errore (es. RangeError da ricorsione profonda nel lexer) diventa un errore d'uso.
-    throw new UsageError(`Markdown non elaborabile: ${(e as Error)?.message ?? String(e)}`);
+    const reason = (e as Error)?.message ?? String(e);
+    throw new UsageError(tr(`Markdown could not be processed: ${reason}`, `Markdown non elaborabile: ${reason}`));
   }
-  if (content.length === 0) throw new UsageError('Contenuto vuoto');
+  if (content.length === 0) throw new UsageError(tr('Empty content', 'Contenuto vuoto'));
   return { type: 'doc', content };
 }

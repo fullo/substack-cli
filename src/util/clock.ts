@@ -1,4 +1,5 @@
 import { UsageError } from './errors.ts';
+import { t } from './i18n.ts';
 
 /** Orologio finto per i test (SUBSTACK_NOW), valido solo con SUBSTACK_ALLOW_TEST_CLOCK=1 esatto. */
 export function testClockNow(env: NodeJS.ProcessEnv): Date | undefined {
@@ -19,7 +20,8 @@ export function parseInstant(input: string): Date {
   const text = input.trim();
   const fail = (): never => {
     throw new UsageError(
-      `Data non valida: "${input}". Usa ISO 8601 con offset, es. 2026-10-09T09:00:00+02:00 oppure 2026-10-09T07:00:00Z`,
+      t(`Invalid date: "${input}". Use ISO 8601 with an offset, e.g. 2026-10-09T09:00:00+02:00 or 2026-10-09T07:00:00Z`,
+        `Data non valida: "${input}". Usa ISO 8601 con offset, es. 2026-10-09T09:00:00+02:00 oppure 2026-10-09T07:00:00Z`),
     );
   };
   const m = ISO.exec(text);
@@ -39,7 +41,7 @@ export function parseInstant(input: string): Date {
 export function parseFutureInstant(input: string, now: Date): Date {
   const date = parseInstant(input);
   if (date.getTime() <= now.getTime()) {
-    throw new UsageError(`La data ${date.toISOString()} non è nel futuro`);
+    throw new UsageError(t(`The date ${date.toISOString()} is not in the future`, `La data ${date.toISOString()} non è nel futuro`));
   }
   return date;
 }

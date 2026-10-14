@@ -2,6 +2,7 @@ import { parseArticle } from '../markdown/frontmatter.ts';
 import type { ParsedArticle } from '../markdown/frontmatter.ts';
 import { markdownToDoc } from '../markdown/prosemirror.ts';
 import { ProviderError } from '../util/errors.ts';
+import { t } from '../util/i18n.ts';
 import type { Provider } from './provider.ts';
 
 export class InvalidOutputError extends ProviderError {
@@ -44,7 +45,7 @@ export async function generateArticle(
   try {
     return { markdown, article: parseArticle(markdown) };
   } catch (e) {
-    throw new InvalidOutputError(`L'output generato non è un articolo valido: ${(e as Error).message}`, raw);
+    throw new InvalidOutputError(t(`The generated output is not a valid article: ${(e as Error).message}`, `L'output generato non è un articolo valido: ${(e as Error).message}`), raw);
   }
 }
 
@@ -56,10 +57,10 @@ export async function generateNote(provider: Provider, opts: GenerateOptions): P
   });
   const text = extractMarkdown(raw);
   try {
-    if (text.length > 5000) throw new Error('la nota supera i 5000 caratteri');
+    if (text.length > 5000) throw new Error(t('the note is longer than 5000 characters', 'la nota supera i 5000 caratteri'));
     markdownToDoc(text);
   } catch (e) {
-    throw new InvalidOutputError(`L'output generato non è una nota valida: ${(e as Error).message}`, raw);
+    throw new InvalidOutputError(t(`The generated output is not a valid note: ${(e as Error).message}`, `L'output generato non è una nota valida: ${(e as Error).message}`), raw);
   }
   return text;
 }
@@ -73,5 +74,5 @@ export function slugify(title: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 60)
     .replace(/-+$/g, '');
-  return slug || 'bozza';
+  return slug || t('draft', 'bozza');
 }
