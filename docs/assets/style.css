@@ -71,6 +71,7 @@ a:hover { color: var(--pencil); }
 .masthead nav { display: flex; gap: 18px; flex-wrap: wrap; justify-content: flex-end; }
 .masthead nav a { text-decoration: none; border-bottom: 1px solid transparent; }
 .masthead nav a:hover { border-bottom-color: var(--pencil); }
+.masthead nav a.lang { padding-left: 18px; border-left: 1px solid var(--rule); }
 
 /* ---------- hero ---------- */
 .hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 48px; align-items: center; padding: 56px 0 64px; }

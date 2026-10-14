@@ -1,6 +1,6 @@
 title: Substack CLI
-description: Bozze, note e pubblicazioni di Substack dal terminale, senza pubblicare per sbaglio.
-lang: it
+description: Substack drafts, notes and publishing from the terminal, without publishing by mistake.
+lang: en
 
 # Pages pubblica la cartella docs/. I documenti interni restano nel repository
 # (si leggono su GitHub) ma non vengono pubblicati come pagine del sito.
