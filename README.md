@@ -294,3 +294,7 @@ Struttura: `src/util` (errori, redazione segreti, fs atomico, orologio), `src/co
 - `--at` richiede una data ISO 8601 con offset (es. `2026-10-09T09:00:00+02:00` oppure `...Z`).
 - Nel front-matter v1 non sono supportati tag e sezione.
 - I permessi del file dei segreti (`0600`) sono solo POSIX: su Windows ci si affida alle ACL dell'utente.
+
+## Licenza
+
+[MIT](LICENSE). Le dipendenze di esecuzione (`marked`, `zod`: MIT; `yaml`: ISC) sono compatibili; gli strumenti di sviluppo (TypeScript, Stryker: Apache-2.0) non sono distribuiti con il codice. Playwright, usato solo da `auth login`, si installa a parte e non è incluso.
