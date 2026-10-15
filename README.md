@@ -1,77 +1,77 @@
 # substack-cli
 
-**Sito:** https://fullo.github.io/substack-cli/ · **Stato: beta, strumento non ufficiale** (vedi «Limitazioni note»).
+**Website:** https://fullo.github.io/substack-cli/ · **Status: beta, unofficial tool** (see "Known limitations").
 
-CLI in Node/TypeScript per scrivere e pubblicare su Substack da terminale: bozze di articoli da file Markdown, pubblicazione e schedulazione, coda locale di note con pubblicazione programmata, generazione di testi con un LLM (Anthropic oppure un server compatibile OpenAI come llama.cpp). Dipendenze di runtime: solo `marked`, `yaml`, `zod`.
+A Node/TypeScript CLI for writing and publishing on Substack from the terminal: article drafts from Markdown files, publishing and scheduling, a local note queue with scheduled publishing, and text generation with an LLM (Anthropic, or an OpenAI-compatible server such as llama.cpp). Runtime dependencies: only `marked`, `yaml`, `zod`.
 
-## 1. Cos'è e avvertenze
+## 1. What it is, and warnings
 
-- **Le API di Substack usate qui sono interne e non documentate.** Possono cambiare senza preavviso; l'uso è a tuo rischio e pericolo e potrebbe violare i termini del servizio. Quando una risposta non ha più la forma attesa il CLI esce con codice 3 (vedi "Risoluzione problemi").
-- Un articolo **non viene mai pubblicato né programmato senza `--yes`** (o conferma interattiva). Con `article publish` l'email agli iscritti parte **solo con `--send-email`**. Con `article schedule` l'email parte sempre, perché Substack non ha un'opzione «nessuna email»: i destinatari si scelgono con `--email` (default `everyone`) e compaiono nel riepilogo prima della conferma.
-- Il cookie di sessione `substack.sid` equivale a una password: non committarlo, non incollarlo in chat o log.
+- **The Substack APIs used here are internal and undocumented.** They can change without notice; use at your own risk, and it may violate the terms of service. When a response no longer has the expected shape the CLI exits with code 3 (see "Troubleshooting").
+- An article is **never published or scheduled without `--yes`** (or an interactive confirmation). With `article publish` the email to subscribers goes out **only with `--send-email`**. With `article schedule` the email always goes out, because Substack has no "no email" option: pick the recipients with `--email` (default `everyone`); they appear in the summary before you confirm.
+- The `substack.sid` session cookie is equivalent to a password: don't commit it, and don't paste it in chats or logs.
 
-## 2. Requisiti e installazione
+## 2. Requirements and installation
 
-Node.js >= 22.18 (esegue direttamente i file `.ts` in sviluppo; il build produce JavaScript).
+Node.js >= 22.18 (it runs `.ts` files directly in development; the build produces JavaScript).
 
 ```bash
 npm run setup       # npm ci + npm run build + npm link
 substack help
 ```
 
-`npm run setup` installa le dipendenze, compila e registra il comando `substack` con `npm link`: è un collegamento simbolico al repository, non una copia, quindi dopo ogni `npm run build` il comando usa già il codice aggiornato. `npm run build` da solo non tocca nulla fuori dal repository (lo usano anche il Dockerfile e i test). Se la cartella globale di npm non è scrivibile dal tuo utente (Node installato di sistema), `npm link` fallisce con `EACCES`: usa un gestore di versioni come nvm oppure imposta un prefisso nella tua home (`npm config set prefix ~/.npm-global` e aggiungi `~/.npm-global/bin` al `PATH`); evita `sudo`. Senza link il comando resta `node dist/cli/main.js`. Per rimuovere il comando: `npm unlink -g substack-cli`.
+`npm run setup` installs the dependencies, builds, and registers the `substack` command with `npm link`: it is a symlink to the repository, not a copy, so after every `npm run build` the command already uses the updated code. `npm run build` on its own touches nothing outside the repository (the Dockerfile and the tests use it too). If npm's global folder isn't writable by your user (system-installed Node), `npm link` fails with `EACCES`: use a version manager such as nvm, or set a prefix in your home (`npm config set prefix ~/.npm-global` and add `~/.npm-global/bin` to `PATH`); avoid `sudo`. Without the link the command is `node dist/cli/main.js`. To remove the command: `npm unlink -g substack-cli`.
 
-## 3. Configurazione
+## 3. Configuration
 
-I file stanno in `~/.config/substack-cli` (config e segreti) e `~/.local/share/substack-cli` (note, bozze generate). Si possono spostare con `SUBSTACK_CLI_CONFIG_DIR` e `SUBSTACK_CLI_DATA_DIR`.
+Files live in `~/.config/substack-cli` (config and secrets) and `~/.local/share/substack-cli` (notes, generated drafts). Move them with `SUBSTACK_CLI_CONFIG_DIR` and `SUBSTACK_CLI_DATA_DIR`.
 
 ```bash
-substack config init --publication miapubblicazione
-substack config init --publication miapubblicazione --lang it --force   # messaggi in italiano
-# oppure con un LLM locale:
-substack config init --publication miapubblicazione \
-  --provider openai-compat --llm-base-url http://localhost:8080 --model locale
-substack config show        # configurazione effettiva, senza segreti
+substack config init --publication mypublication
+substack config init --publication mypublication --lang it --force   # Italian messages
+# or with a local LLM:
+substack config init --publication mypublication \
+  --provider openai-compat --llm-base-url http://localhost:8080 --model local
+substack config show        # effective configuration, without secrets
 ```
 
-`--publication` è il sottodominio (la parte prima di `.substack.com`). `config init` non sovrascrive un file esistente senza `--force`.
+`--publication` is the subdomain (the part before `.substack.com`). `config init` won't overwrite an existing file without `--force`.
 
-**Lingua.** I messaggi del CLI sono in inglese di default. Con `"lang": "it"` in `config.json` (cioè `config init --lang it`) oppure con `SUBSTACK_LANG=it` passano all'italiano; la variabile ha la precedenza sul file. Seguono la lingua anche le parole da digitare per confermare (`publish`/`pubblica`, `schedule`/`programma`, `update`/`aggiorna`) e la lingua predefinita del testo generato con `generate` (si cambia con `--lang`). Un valore di `SUBSTACK_LANG` diverso da `en` o `it` produce un avviso e lascia l'inglese.
+**Language.** CLI messages are in English by default. With `"lang": "it"` in `config.json` (that is, `config init --lang it`) or with `SUBSTACK_LANG=it` they switch to Italian; the variable takes precedence over the file. The words you type to confirm (`publish`/`pubblica`, `schedule`/`programma`, `update`/`aggiorna`) and the default language of text generated by `generate` (change it with `--lang`) follow the language too. A `SUBSTACK_LANG` value other than `en` or `it` prints a warning and falls back to English.
 
-Variabili d'ambiente (hanno la precedenza su `secrets.json`; valori vuoti equivalgono a non impostati):
+Environment variables (they take precedence over `secrets.json`; empty values count as unset):
 
-| Variabile | Uso |
+| Variable | Use |
 |---|---|
-| `SUBSTACK_SID` | cookie di sessione Substack |
-| `ANTHROPIC_API_KEY` | chiave del provider `anthropic` |
-| `SUBSTACK_LLM_API_KEY` | chiave per il server `openai-compat`, se la richiede |
-| `SUBSTACK_CLI_CONFIG_DIR` | cartella di `config.json` e `secrets.json` |
-| `SUBSTACK_CLI_DATA_DIR` | cartella dei dati (coda note, `drafts/`) |
-| `SUBSTACK_LANG` | lingua dei messaggi: `en` (default) o `it`; prevale su `lang` in `config.json` |
+| `SUBSTACK_SID` | Substack session cookie |
+| `ANTHROPIC_API_KEY` | key for the `anthropic` provider |
+| `SUBSTACK_LLM_API_KEY` | key for the `openai-compat` server, if it needs one |
+| `SUBSTACK_CLI_CONFIG_DIR` | folder of `config.json` and `secrets.json` |
+| `SUBSTACK_CLI_DATA_DIR` | data folder (note queue, `drafts/`) |
+| `SUBSTACK_LANG` | message language: `en` (default) or `it`; overrides `lang` in `config.json` |
 
-Solo per i test: `SUBSTACK_NOW` (data ISO) sostituisce l'orologio, ma soltanto se anche `SUBSTACK_ALLOW_TEST_CLOCK=1`. Quando l'orologio di test è attivo ogni comando stampa un avviso su stderr: non impostare queste variabili in produzione (anticiperebbero o ritarderebbero la pubblicazione delle note).
+For tests only: `SUBSTACK_NOW` (ISO date) replaces the clock, but only if `SUBSTACK_ALLOW_TEST_CLOCK=1` is also set. While the test clock is active every command prints a warning on stderr: don't set these variables in production (they would bring forward or delay the publishing of notes).
 
-## 4. Autenticazione (tutorial passo passo)
+## 4. Authentication (step-by-step tutorial)
 
-Il testo seguente è lo stesso di `substack auth guide`.
+The text below is the same as `substack auth guide`.
 
-Substack non ha API key: il CLI usa il cookie `substack.sid` del tuo account. Trattalo come una password: chi lo possiede può agire come te.
+Substack has no API keys: the CLI uses your account's `substack.sid` cookie. Treat it like a password: whoever has it can act as you.
 
-1. Sul tuo PC apri https://substack.com e fai login.
-2. Apri gli strumenti sviluppatore del browser (F12).
-3. Chrome/Edge: scheda "Application" -> "Cookies" -> "https://substack.com". Firefox: scheda "Storage" -> "Cookies". Safari: "Archiviazione" -> "Cookie".
-4. Trova la riga `substack.sid` e copia il suo VALORE (inizia di solito con `s%3A`).
-5. Salvalo sul dispositivo/VM dove gira il CLI, in uno di questi modi (mai il valore scritto sulla riga di comando: finirebbe nella cronologia della shell e in `ps`):
-   - a) interattivo (il valore non viene mostrato): `substack auth set`
-   - b) da stdin (utile via SSH o in uno script): `read -rs SID && printf '%s' "$SID" | substack auth set; unset SID`
-   - c) variabile d'ambiente (senza file): `read -rs SUBSTACK_SID && export SUBSTACK_SID`
-6. Verifica: `substack auth check`. Se risponde "Valid session" ("Sessione valida" in italiano), sei a posto.
+1. On your PC open https://substack.com and log in.
+2. Open the browser's developer tools (F12).
+3. Chrome/Edge: "Application" tab -> "Cookies" -> "https://substack.com". Firefox: "Storage" tab -> "Cookies". Safari: "Storage" -> "Cookies".
+4. Find the `substack.sid` row and copy its VALUE (it usually starts with `s%3A`).
+5. Save it on the device/VM where the CLI runs, in one of these ways (never with the value typed on the command line: it would end up in the shell history and in `ps`):
+   - a) interactive (the value is not echoed): `substack auth set`
+   - b) from stdin (useful over SSH or in a script): `read -rs SID && printf '%s' "$SID" | substack auth set; unset SID`
+   - c) environment variable (no file): `read -rs SUBSTACK_SID && export SUBSTACK_SID`
+6. Check: `substack auth check`. If it answers "Valid session" you're all set.
 
-**Senza poter caricare file sulla VM:** usa (b) o (c) da una sessione SSH.
+**If you can't upload files to the VM:** use (b) or (c) from an SSH session.
 
-**Senza browser a portata di mano:** sul tuo PC installa Playwright (`npm install --no-save playwright && npx playwright install chromium`) ed esegui `substack auth login`: si apre un browser, fai login a mano e il cookie viene salvato; con `--print` viene stampato per poterlo copiare sulla VM.
+**If you have no browser at hand:** on your PC install Playwright (`npm install --no-save playwright && npx playwright install chromium`) and run `substack auth login`: a browser opens, you log in by hand and the cookie is saved; with `--print` it is printed so you can copy it to the VM.
 
-**Kubernetes (k3s):** crea o aggiorna il Secret leggendo il valore da stdin:
+**Kubernetes (k3s):** create or update the Secret reading the value from stdin:
 
 ```bash
 read -rs SID
@@ -80,115 +80,116 @@ printf '%s' "$SID" | kubectl -n substack create secret generic substack-secrets 
 unset SID
 ```
 
-Il cookie scade ogni tanto: quando `substack auth check` esce con codice 2, ripeti la procedura.
+The cookie expires from time to time: when `substack auth check` exits with code 2, repeat the procedure.
 
-Il file `secrets.json` viene scritto con permessi `0600`; su Windows i permessi POSIX non hanno effetto (vedi "Limitazioni note").
+`secrets.json` is written with `0600` permissions; on Windows POSIX permissions have no effect (see "Known limitations").
 
-## 5. Uso
+## 5. Usage
 
-Opzione comune a tutti i comandi: `--json` (output per macchine).
+Option common to all commands: `--json` (machine-readable output).
 
-### Articoli
+### Articles
 
-Un articolo è un file Markdown con front-matter YAML (`title` obbligatorio, `subtitle` opzionale; nessun'altra chiave):
+An article is a Markdown file with YAML front matter (`title` required, `subtitle` optional; no other keys):
 
 ```markdown
 ---
-title: Il mio primo articolo
-subtitle: Una riga di sottotitolo
+title: My first article
+subtitle: A one-line subtitle
 ---
 
-Testo con **grassetto**, *corsivo*, [link](https://example.com), elenchi e citazioni.
+Text with **bold**, *italics*, a [link](https://example.com), lists and quotes.
 ```
 
 ```bash
-substack article draft articolo.md              # crea la bozza online; stampa id e URL di modifica
-substack article draft articolo.md --dry-run    # valida e converte senza chiamare Substack
-cat articolo.md | substack article draft -      # da stdin
-substack article list                           # bozze più recenti
-substack article list --status published        # articoli pubblicati: id, titolo, link
-substack article list --status published --limit 50 --page 2   # pagine da 10|25|50|100 (default 25), una richiesta per pagina
-substack article list --search "green coding"    # cerca tra i pubblicati: id, titolo, link
-substack article export 123 --out articolo.md    # scarica un articolo come Markdown con front-matter (senza --out: stdout; --force sovrascrive)
-substack article update 123 --title "123 - Nuovo titolo"       # cambia solo il titolo: chiede conferma ("update", o "aggiorna" in italiano)
-substack article update 123 --subtitle ""                      # cancella il sottotitolo
-substack article update 123 --file articolo.md --yes           # sostituisce corpo, titolo e sottotitolo dal file
-substack article update 123 --title "..." --dry-run            # mostra il prima/dopo senza modificare
-substack article publish 123                    # chiede conferma
-substack article publish 123 --yes              # pubblica senza email
-substack article publish 123 --yes --send-email # pubblica e invia l'email agli iscritti
-substack article schedule 123 --at 2026-10-09T09:00:00+02:00   # schedulazione nativa Substack, email a tutti (default): chiede conferma ("schedule", o "programma" in italiano)
-substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --email only_free   # destinatari: everyone (default), only_free, only_paid, founding
-substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --yes        # senza prompt (obbligatorio da script/cron)
-substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --dry-run    # mostra titolo, data ed email senza schedulare
-substack article schedule 123 --cancel                          # annulla la schedulazione
-substack image upload copertina.png             # carica un'immagine (PNG, JPEG, GIF, WebP, max 10 MB) e stampa l'URL
-substack article draft articolo.md --cover copertina.png        # carica l'immagine, crea la bozza e imposta la copertina
-substack article update 123 --cover copertina.png --yes         # imposta la copertina da file (caricato dopo la conferma)
-substack article update 123 --cover https://substack-post-media.s3.amazonaws.com/... --yes   # oppure da un URL già caricato
+substack article draft article.md               # create the online draft; prints id and edit URL
+substack article draft article.md --dry-run     # validate and convert without calling Substack
+cat article.md | substack article draft -       # from stdin
+substack article list                           # most recent drafts
+substack article list --status published        # published articles: id, title, link
+substack article list --status published --limit 50 --page 2   # pages of 10|25|50|100 (default 25), one request per page
+substack article list --search "green coding"   # search published articles: id, title, link
+substack article export 123 --out article.md    # download an article as Markdown with front matter (no --out: stdout; --force overwrites)
+substack article update 123 --title "123 - New title"          # change only the title: asks for confirmation ("update", or "aggiorna" in Italian)
+substack article update 123 --subtitle ""                      # clear the subtitle
+substack article update 123 --file article.md --yes            # replace body, title and subtitle from the file
+substack article update 123 --title "..." --dry-run            # show before/after without changing anything
+substack article publish 123                    # asks for confirmation
+substack article publish 123 --yes              # publish without email
+substack article publish 123 --yes --send-email # publish and email subscribers
+substack article schedule 123 --at 2026-10-09T09:00:00+02:00   # Substack's native scheduling, email to everyone (default): asks for confirmation ("schedule", or "programma" in Italian)
+substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --email only_free   # recipients: everyone (default), only_free, only_paid, founding
+substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --yes        # no prompt (required from scripts/cron)
+substack article schedule 123 --at 2026-10-09T09:00:00+02:00 --dry-run    # show title, date and email without scheduling
+substack article schedule 123 --cancel                          # cancel the schedule
+substack image upload cover.png                 # upload an image (PNG, JPEG, GIF, WebP, max 10 MB) and print the URL
+substack article draft article.md --cover cover.png             # upload the image, create the draft and set the cover
+substack article update 123 --cover cover.png --yes             # set the cover from a file (uploaded after confirmation)
+substack article update 123 --cover https://substack-post-media.s3.amazonaws.com/... --yes   # or from an already uploaded URL
 ```
 
-Elenco dei pubblicati, ricerca ed `export` usano gli endpoint descritti nella sezione 11 di `tests/fixtures/README.md` (verificati su una pubblicazione reale il 2026-10-15). `article export` converte il corpo ProseMirror in Markdown per i costrutti che il CLI sa anche scrivere (titoli, grassetto, corsivo, codice, link, liste, citazioni, blocchi di codice, linea orizzontale, immagini https); embed e widget diventano un commento `<!-- substack: … non esportato -->` e un avviso su stderr. Un export di massa **non c'è, di proposito**: ogni comando fa una sola richiesta e non scorre le pagine da solo; non risulta un'API di esportazione completa documentata (l'export di Substack si fa dalle impostazioni del sito).
+Listing published articles, search and `export` use the endpoints described in section 11 of `tests/fixtures/README.md` (verified on a real publication on 2026-10-15). `article export` converts the ProseMirror body to Markdown for the constructs the CLI can also write (headings, bold, italics, code, links, lists, quotes, code blocks, horizontal rule, https images); embeds and widgets become an HTML comment (`<!-- substack: <type> non esportato -->`, whose wording is currently always Italian) and a warning on stderr. A bulk export is **deliberately not provided**: each command makes a single request and never walks through the pages by itself; no documented full-export API was found (Substack's export is done from the site settings).
 
-Caricamento immagini e copertina usano endpoint **non ancora confermati** (vedi `tests/fixtures/README.md`, sezione 10): dopo l'aggiornamento il CLI rilegge la bozza e, se la copertina non risulta impostata, esce con codice 3. Con `article draft --cover` l'immagine si carica prima di creare la bozza; se poi l'impostazione della copertina fallisce, il messaggio riporta l'id della bozza e il comando per ripetere solo la copertina.
+Image upload and cover use endpoints that are **not yet confirmed** (see `tests/fixtures/README.md`, section 10): after updating, the CLI rereads the draft and, if the cover isn't set, exits with code 3. With `article draft --cover` the image is uploaded before the draft is created; if setting the cover then fails, the message gives the draft id and the command to retry just the cover.
 
-### Note
+### Notes
 
-- `article update` modifica solo bozze non pubblicate e invia solo i campi che cambiano. Con `--file` il file è la fonte completa (corpo, `title` e `subtitle` del front-matter); `--title` e `--subtitle` prevalgono sul file. Sostituire il corpo cancella le modifiche fatte nell'editor web. Dopo l'invio il comando rilegge la bozza e fallisce (exit 3) se titolo o sottotitolo non risultano aggiornati. L'aggiornamento del solo titolo è verificato su Substack reale; la sostituzione del corpo non ancora, quindi conviene provarla prima su una bozza di prova (vedi `tests/fixtures/README.md`, sezione 9).
-Le note vivono in una coda locale; `notes run-due` pubblica quelle schedulate scadute.
+- `article update` only edits unpublished drafts and sends only the fields that change. With `--file` the file is the complete source (body, and `title` and `subtitle` from the front matter); `--title` and `--subtitle` take precedence over the file. Replacing the body discards edits made in the web editor. After sending, the command rereads the draft and fails (exit 3) if the title or subtitle don't look updated. Updating the title alone is verified on real Substack; replacing the body is not yet, so try it on a test draft first (see `tests/fixtures/README.md`, section 9).
+
+Notes live in a local queue; `notes run-due` publishes the scheduled ones that are due.
 
 ```bash
-substack note add "Testo della nota"            # oppure: echo "testo" | substack note add -
+substack note add "Note text"                   # or: echo "text" | substack note add -
 substack note list --status draft
 substack note schedule <id> --at 2026-10-09T09:00:00+02:00
-substack note unschedule <id>                   # torna a draft
-substack note publish <id>                      # pubblica subito
-substack notes run-due                          # da cron / systemd / k3s
-substack notes run-due --dry-run                # mostra cosa pubblicherebbe
-substack note resolve <id> --published          # oppure --retry, per una nota bloccata in "publishing"
+substack note unschedule <id>                   # back to draft
+substack note publish <id>                      # publish now
+substack notes run-due                          # from cron / systemd / k3s
+substack notes run-due --dry-run                # show what it would publish
+substack note resolve <id> --published          # or --retry, for a note stuck in "publishing"
 ```
 
-Stati di una nota: `draft`, `scheduled`, `publishing`, `published`, `failed`.
+Note states: `draft`, `scheduled`, `publishing`, `published`, `failed`.
 
-Ogni comando che modifica la coda (`note add/schedule/unschedule/publish/resolve`, `generate note`, `notes run-due`) prende il lock `<dataDir>/notes/.lock`: se un altro comando lo tiene, esce con codice 6 ("Operazione già in corso") e va semplicemente ripetuto. `run-due` rilegge ogni nota sotto lock prima di pubblicarla (una nota tolta o rimandata durante il giro non parte), rinnova il lock prima di ogni nota e si interrompe se un altro processo lo ha preso in carico; su SIGTERM/SIGINT il lock viene rilasciato prima di uscire.
+Every command that changes the queue (`note add/schedule/unschedule/publish/resolve`, `generate note`, `notes run-due`) takes the lock `<dataDir>/notes/.lock`: if another command holds it, it exits with code 6 ("Operation already in progress") and simply needs to be repeated. `run-due` rereads each note under the lock before publishing it (a note removed or postponed during the run doesn't go out), renews the lock before each note, and stops if another process has taken it over; on SIGTERM/SIGINT the lock is released before exiting.
 
-### Generazione con un LLM
+### Generation with an LLM
 
 ```bash
-substack generate article --topic "Perché scrivere ogni settimana" --lang it
-substack generate article --topic "..." --draft          # salva anche la bozza online
-substack generate note --topic "Idea per una nota"       # aggiunge una nota draft alla coda
+substack generate article --topic "Why write every week" --lang en
+substack generate article --topic "..." --draft          # also save the online draft
+substack generate note --topic "Idea for a note"         # adds a draft note to the queue
 substack generate article --topic "..." --provider anthropic
 ```
 
-Gli articoli generati vengono salvati in `<dataDir>/drafts/`; un output non valido viene salvato come `rifiutato-<data>.md` e il comando esce con codice 5. Nulla viene mai pubblicato automaticamente.
+Generated articles are saved in `<dataDir>/drafts/`; invalid output is saved as `rejected-<date>.md` (`rifiutato-<date>.md` in Italian) and the command exits with code 5. Nothing is ever published automatically.
 
-Con llama.cpp:
+With llama.cpp:
 
 ```bash
-llama-server -m modello.gguf --port 8080
-substack config init --publication miapubblicazione \
+llama-server -m model.gguf --port 8080
+substack config init --publication mypublication \
   --provider openai-compat --llm-base-url http://localhost:8080 --force
 ```
 
-Con Anthropic: `export ANTHROPIC_API_KEY=...` e `--provider anthropic` (oppure `generate.provider` in `config.json`).
+With Anthropic: `export ANTHROPIC_API_KEY=...` and `--provider anthropic` (or `generate.provider` in `config.json`).
 
-La chiave Anthropic viene inviata **solo** a `https://api.anthropic.com`: `generate.baseUrl` vale esclusivamente per il provider `openai-compat` (server LLM locale o di rete) e non riceve mai `ANTHROPIC_API_KEY`, nemmeno con `--provider anthropic`. Il campo opzionale `generate.anthropicBaseUrl` accetta soltanto `https://api.anthropic.com` (qualsiasi altro valore rende la configurazione non valida).
+The Anthropic key is sent **only** to `https://api.anthropic.com`: `generate.baseUrl` applies exclusively to the `openai-compat` provider (a local or network LLM server) and never receives `ANTHROPIC_API_KEY`, not even with `--provider anthropic`. The optional `generate.anthropicBaseUrl` field accepts only `https://api.anthropic.com` (any other value makes the configuration invalid).
 
-## 6. Exit code
+## 6. Exit codes
 
-| Codice | Significato |
+| Code | Meaning |
 |---|---|
-| 0 | successo |
-| 1 | errore generico/inatteso |
-| 2 | autenticazione: cookie mancante, non valido o scaduto |
-| 3 | risposta dell'API Substack con forma inattesa (API cambiata) |
-| 4 | errore di rete o rate limit |
-| 5 | errore del provider LLM o output generato non valido |
-| 6 | stato incoerente (es. nota rimasta in `publishing`) |
-| 64 | uso errato: argomenti, front-matter o Markdown non validi |
+| 0 | success |
+| 1 | generic/unexpected error |
+| 2 | authentication: cookie missing, invalid or expired |
+| 3 | Substack API response with an unexpected shape (API changed) |
+| 4 | network error or rate limit |
+| 5 | LLM provider error or invalid generated output |
+| 6 | inconsistent state (e.g. a note left in `publishing`) |
+| 64 | wrong usage: invalid arguments, front matter or Markdown |
 
-## 7. Deploy
+## 7. Deployment
 
 ### Docker
 
@@ -197,57 +198,57 @@ docker build -f deploy/Dockerfile -t substack-cli:0.1.0 .
 docker run --rm substack-cli:0.1.0 help
 ```
 
-L'immagine esegue come utente `node` (uid 1000), con `/config` e `/data` come cartelle di configurazione e dati.
+The image runs as the `node` user (uid 1000), with `/config` and `/data` as the configuration and data folders.
 
-L'immagine finale non contiene npm, npx, corepack né yarn (rimossi dopo `npm ci`): solo `node` e il CLI compilato. Per build riproducibili fissa l'immagine base al digest (`node:22-alpine@sha256:...`), come indicato nel Dockerfile.
+The final image contains no npm, npx, corepack or yarn (removed after `npm ci`): only `node` and the compiled CLI. For reproducible builds pin the base image to its digest (`node:22-alpine@sha256:...`), as noted in the Dockerfile.
 
 ### k3s
 
 ```bash
-# importa l'immagine nel containerd di k3s
+# import the image into k3s's containerd
 docker save substack-cli:0.1.0 | sudo k3s ctr images import -
 
-# modifica prima deploy/k3s/configmap.yaml (publication e, se serve, baseUrl del server LLM)
+# first edit deploy/k3s/configmap.yaml (publication and, if needed, the LLM server's baseUrl)
 kubectl apply -f deploy/k3s/namespace.yaml
 kubectl apply -f deploy/k3s/configmap.yaml
 kubectl apply -f deploy/k3s/pvc.yaml
 
-# Secret: NON committare valori reali e non scriverli sulla riga di comando (cronologia della shell, ps)
+# Secret: do NOT commit real values and don't write them on the command line (shell history, ps)
 read -rs SID
 printf '%s' "$SID" | kubectl -n substack create secret generic substack-secrets \
   --from-file=SUBSTACK_SID=/dev/stdin
 unset SID
-# Con più chiavi (ANTHROPIC_API_KEY, SUBSTACK_LLM_API_KEY): un file temporaneo leggibile solo da te
-#   (umask 077; cat > /dev/shm/substack.env)    # incolla le righe CHIAVE=valore, poi Ctrl+D
+# With several keys (ANTHROPIC_API_KEY, SUBSTACK_LLM_API_KEY): a temporary file readable only by you
+#   (umask 077; cat > /dev/shm/substack.env)    # paste the KEY=value lines, then Ctrl+D
 #   kubectl -n substack create secret generic substack-secrets --from-env-file=/dev/shm/substack.env
 #   shred -u /dev/shm/substack.env
-# deploy/k3s/secret.example.yaml mostra solo la forma.
+# deploy/k3s/secret.example.yaml only shows the shape.
 
-kubectl apply -f deploy/k3s/job-auth-check.yaml      # verifica il cookie
+kubectl apply -f deploy/k3s/job-auth-check.yaml      # check the cookie
 kubectl -n substack logs job/substack-auth-check
-kubectl apply -f deploy/k3s/cronjob.yaml             # run-due ogni minuto
-kubectl apply -f deploy/k3s/toolbox.yaml             # opzionale, per kubectl exec (parte con replicas: 0)
+kubectl apply -f deploy/k3s/cronjob.yaml             # run-due every minute
+kubectl apply -f deploy/k3s/toolbox.yaml             # optional, for kubectl exec (starts with replicas: 0)
 kubectl -n substack scale deploy/substack-toolbox --replicas=1
 kubectl -n substack exec -it deploy/substack-toolbox -- node /app/dist/cli/main.js article list
-kubectl -n substack scale deploy/substack-toolbox --replicas=0   # spegnilo quando hai finito
+kubectl -n substack scale deploy/substack-toolbox --replicas=0   # switch it off when you're done
 ```
 
-Il toolbox tiene il cookie nel proprio ambiente per tutto il tempo in cui è acceso: tienilo a 0 repliche quando non serve. Tutti i pod girano senza token del service account (`automountServiceAccountToken: false`), con profilo seccomp `RuntimeDefault`, filesystem di root in sola lettura e limiti di CPU/memoria (richieste 50m/64Mi, limiti 500m/256Mi).
+The toolbox keeps the cookie in its environment for as long as it is running: keep it at 0 replicas when not needed. All pods run without a service account token (`automountServiceAccountToken: false`), with the `RuntimeDefault` seccomp profile, a read-only root filesystem and CPU/memory limits (requests 50m/64Mi, limits 500m/256Mi).
 
-Rinnovo del cookie: rieseguire il comando `kubectl ... create secret ... --dry-run=client -o yaml | kubectl apply -f -` mostrato nella sezione 4; i prossimi Job leggono il nuovo valore (il toolbox va riavviato: `kubectl -n substack rollout restart deploy/substack-toolbox`). Per rieseguire il controllo: `kubectl -n substack delete job substack-auth-check` e di nuovo `apply`.
+Cookie renewal: rerun the `kubectl ... create secret ... --dry-run=client -o yaml | kubectl apply -f -` command shown in section 4; the next Jobs read the new value (the toolbox must be restarted: `kubectl -n substack rollout restart deploy/substack-toolbox`). To rerun the check: `kubectl -n substack delete job substack-auth-check` and `apply` again.
 
-Lettura dei fallimenti del CronJob (il Job fallisce se `run-due` esce con codice diverso da 0):
+Reading CronJob failures (the Job fails if `run-due` exits with a non-zero code):
 
 ```bash
 kubectl -n substack get jobs
-kubectl -n substack logs job/<nome-del-job-fallito>
+kubectl -n substack logs job/<name-of-the-failed-job>
 ```
 
-La PVC è `ReadWriteOnce` (`local-path`): CronJob e toolbox funzionano perché k3s a nodo singolo li schedula sullo stesso nodo. `concurrencyPolicy: Forbid` evita esecuzioni sovrapposte.
+The PVC is `ReadWriteOnce` (`local-path`): the CronJob and the toolbox work because single-node k3s schedules them on the same node. `concurrencyPolicy: Forbid` prevents overlapping runs.
 
 ### systemd
 
-Su una VM, con il progetto compilato in `/opt/substack-cli`, un utente `substack` e le cartelle `/etc/substack-cli` (con `config.json`) e `/var/lib/substack-cli` (scrivibile da `substack`):
+On a VM, with the project built in `/opt/substack-cli`, a `substack` user and the folders `/etc/substack-cli` (with `config.json`) and `/var/lib/substack-cli` (writable by `substack`):
 
 ```bash
 sudo install -m 0600 -o substack /dev/null /etc/substack-cli/env
@@ -259,11 +260,11 @@ systemctl list-timers substack-notes.timer
 journalctl -u substack-notes.service -n 50
 ```
 
-Il file `env` contiene i segreti (`SUBSTACK_SID`, ecc.); tienilo leggibile solo dall'utente del servizio.
+The `env` file contains the secrets (`SUBSTACK_SID`, etc.); keep it readable only by the service user.
 
-Il servizio gira con `ProtectSystem=strict`, `ProtectHome=true`, `PrivateTmp`, `PrivateDevices`, nessuna capability (`CapabilityBoundingSet=` vuoto), solo socket `AF_UNIX`/`AF_INET`/`AF_INET6` (AF_UNIX per la risoluzione DNS locale), `MemoryMax=256M` e `UMask=0077`.
+The service runs with `ProtectSystem=strict`, `ProtectHome=true`, `PrivateTmp`, `PrivateDevices`, no capabilities (empty `CapabilityBoundingSet=`), only `AF_UNIX`/`AF_INET`/`AF_INET6` sockets (AF_UNIX for local DNS resolution), `MemoryMax=256M` and `UMask=0077`.
 
-## 8. Sviluppo
+## 8. Development
 
 ```bash
 npm test               # unit + security + functional
@@ -274,27 +275,27 @@ npm run coverage
 npm run mutation       # Stryker
 ```
 
-Struttura: `src/util` (errori, redazione segreti, fs atomico, orologio), `src/config`, `src/auth` (cookie, guida, login Playwright), `src/markdown` (front-matter e conversione Markdown -> ProseMirror), `src/substack` (client HTTP e schemi), `src/notes` (coda e pubblicazione), `src/generate` (provider LLM), `src/cli` (router e comandi), `tests/`, `scripts/probe.ts` (sonda di sola lettura per verificare le API), `deploy/`, `docs/`.
+Layout: `src/util` (errors, secret redaction, atomic fs, clock), `src/config`, `src/auth` (cookie, guide, Playwright login), `src/markdown` (front matter, Markdown -> ProseMirror conversion and back), `src/substack` (HTTP client and schemas), `src/notes` (queue and publishing), `src/generate` (LLM providers), `src/cli` (router and commands), `tests/`, `scripts/probe.ts` (read-only probe to verify the APIs), `deploy/`, `docs/`.
 
-## 9. Risoluzione problemi
+## 9. Troubleshooting
 
-- **Exit 2 (cookie):** il cookie manca o è scaduto. Ripeti la procedura della sezione 4 e verifica con `substack auth check`.
-- **Exit 3 (API cambiata):** Substack ha modificato un endpoint o la forma di una risposta. Apri una issue indicando endpoint e campo che non corrispondono (senza cookie né dati personali).
-- **Exit 6 (nota in `publishing`):** una pubblicazione è stata interrotta e non si sa se sia andata a buon fine. Esegui `substack note list --status publishing`, controlla su Substack se la nota esiste, poi `substack note resolve <id> --published` oppure `--retry`.
-- **Exit 4:** errore di rete o rate limit; riprova più tardi (`run-due` ritenterà alla prossima esecuzione).
-- **Exit 64:** leggi il messaggio: indica il vincolo violato (front-matter, Markdown non supportato, data senza offset).
+- **Exit 2 (cookie):** the cookie is missing or expired. Repeat the procedure in section 4 and verify with `substack auth check`.
+- **Exit 3 (API changed):** Substack changed an endpoint or the shape of a response. Open an issue naming the endpoint and the field that doesn't match (without the cookie or personal data).
+- **Exit 6 (note in `publishing`):** a publication was interrupted and it is unknown whether it succeeded. Run `substack note list --status publishing`, check on Substack whether the note exists, then `substack note resolve <id> --published` or `--retry`.
+- **Exit 4:** network error or rate limit; try again later (`run-due` will retry on its next run).
+- **Exit 64:** read the message: it names the violated constraint (front matter, unsupported Markdown, date without offset).
 
-## 10. Limitazioni note
+## 10. Known limitations
 
-- Le API interne di Substack sono non documentate; gli endpoint restano marcati "candidati" finché non vengono confermati nella Fase 0 (vedi `tests/fixtures/README.md`).
-- Le entità HTML con nome (ad es. `&copy;`) restano letterali nel testo.
-- HTML grezzo, tabelle, liste di task, testo barrato, link in stile reference e titoli h5/h6 vengono rifiutati con un errore esplicito.
-- Input oltre 300 KB o con markup inline patologico viene rifiutato.
-- Il numero iniziale delle liste ordinate non viene preservato.
-- `--at` richiede una data ISO 8601 con offset (es. `2026-10-09T09:00:00+02:00` oppure `...Z`).
-- Nel front-matter v1 non sono supportati tag e sezione.
-- I permessi del file dei segreti (`0600`) sono solo POSIX: su Windows ci si affida alle ACL dell'utente.
+- Substack's internal APIs are undocumented; some endpoints stay marked "candidate" until confirmed in Phase 0 (see `tests/fixtures/README.md`).
+- Named HTML entities (e.g. `&copy;`) stay literal in the text.
+- Raw HTML, tables, task lists, strikethrough, reference-style links and h5/h6 headings are rejected with an explicit error.
+- Input over 300 KB or with pathological inline markup is rejected.
+- The starting number of ordered lists is not preserved.
+- `--at` requires an ISO 8601 date with an offset (e.g. `2026-10-09T09:00:00+02:00` or `...Z`).
+- Front matter v1 supports no tags or section.
+- The secrets file permissions (`0600`) are POSIX only: on Windows you rely on the user's ACLs.
 
-## Licenza
+## License
 
-[MIT](LICENSE). Le dipendenze di esecuzione (`marked`, `zod`: MIT; `yaml`: ISC) sono compatibili; gli strumenti di sviluppo (TypeScript, Stryker: Apache-2.0) non sono distribuiti con il codice. Playwright, usato solo da `auth login`, si installa a parte e non è incluso.
+[MIT](LICENSE). The runtime dependencies (`marked`, `zod`: MIT; `yaml`: ISC) are compatible; the development tools (TypeScript, Stryker: Apache-2.0) are not distributed with the code. Playwright, used only by `auth login`, is installed separately and is not included.
