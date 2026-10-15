@@ -106,6 +106,10 @@ substack article draft articolo.md              # crea la bozza online; stampa i
 substack article draft articolo.md --dry-run    # valida e converte senza chiamare Substack
 cat articolo.md | substack article draft -      # da stdin
 substack article list                           # bozze più recenti
+substack article list --status published        # articoli pubblicati: id, titolo, link
+substack article list --status published --limit 50 --page 2   # pagine da 10|25|50|100 (default 25), una richiesta per pagina
+substack article list --search "green coding"    # cerca tra i pubblicati: id, titolo, link
+substack article export 123 --out articolo.md    # scarica un articolo come Markdown con front-matter (senza --out: stdout; --force sovrascrive)
 substack article update 123 --title "123 - Nuovo titolo"       # cambia solo il titolo: chiede conferma ("update", o "aggiorna" in italiano)
 substack article update 123 --subtitle ""                      # cancella il sottotitolo
 substack article update 123 --file articolo.md --yes           # sostituisce corpo, titolo e sottotitolo dal file
@@ -123,6 +127,8 @@ substack article draft articolo.md --cover copertina.png        # carica l'immag
 substack article update 123 --cover copertina.png --yes         # imposta la copertina da file (caricato dopo la conferma)
 substack article update 123 --cover https://substack-post-media.s3.amazonaws.com/... --yes   # oppure da un URL già caricato
 ```
+
+Elenco dei pubblicati, ricerca ed `export` usano gli endpoint descritti nella sezione 11 di `tests/fixtures/README.md` (verificati su una pubblicazione reale il 2026-10-15). `article export` converte il corpo ProseMirror in Markdown per i costrutti che il CLI sa anche scrivere (titoli, grassetto, corsivo, codice, link, liste, citazioni, blocchi di codice, linea orizzontale, immagini https); embed e widget diventano un commento `<!-- substack: … non esportato -->` e un avviso su stderr. Un export di massa **non c'è, di proposito**: ogni comando fa una sola richiesta e non scorre le pagine da solo; non risulta un'API di esportazione completa documentata (l'export di Substack si fa dalle impostazioni del sito).
 
 Caricamento immagini e copertina usano endpoint **non ancora confermati** (vedi `tests/fixtures/README.md`, sezione 10): dopo l'aggiornamento il CLI rilegge la bozza e, se la copertina non risulta impostata, esce con codice 3. Con `article draft --cover` l'immagine si carica prima di creare la bozza; se poi l'impostazione della copertina fallisce, il messaggio riporta l'id della bozza e il comando per ripetere solo la copertina.
 

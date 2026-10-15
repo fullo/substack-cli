@@ -56,3 +56,13 @@ Procedura (solo con ok esplicito dell'utente, su una bozza di prova mai pubblica
 1. `substack image upload prova.png --json`: il caricamento non pubblica nulla e non è visibile agli iscritti.
 2. `substack article update <id-prova> --cover <url> --dry-run`, poi senza `--dry-run`; controllo nell'editor web.
 3. `substack article draft prova.md --cover prova.png`, poi cancellare la bozza dall'editor web.
+
+## 11. Elenco pubblicati, ricerca ed export (GET, solo lettura)
+
+Verifica del 2026-10-15 con il CLI su una pubblicazione reale (solo GET). Dove non è indicato CONFERMATO, resta da provare con `node scripts/probe.ts <subdomain>`.
+
+- [x] CONFERMATO — Elenco pubblicati: `GET /api/v1/post_management/published?offset&limit&order_by=post_date&order_direction=desc`, risposta attesa `{ posts: [{ id, title, slug, canonical_url, post_date, … }] }` come per le bozze
+- [x] CONFERMATO — Ricerca: `GET /api/v1/archive?sort=new&search=<testo>&offset&limit`, array di post. Con `sort=search` il server risponde 400 (valore non valido)
+- [x] CONFERMATO — Export: `GET /api/v1/drafts/<id>` su un articolo già pubblicato, con `draft_body` (stringa JSON ProseMirror) valorizzato
+- [x] Nodi osservati in un post reale senza forma Markdown: `button`, `captionedShareButton`, `directMessage`, `subscribeWidget`, mark `textStyle` (quest'ultimo ignorato in silenzio); oggi diventano un commento nel Markdown. Nodi che compaiono nei post reali oltre a quelli della sezione 8 (embed, widget, bottoni, note a piè di pagina): oggi diventano un commento nel Markdown
+- Export di massa: nessuna API documentata trovata; non implementato (un ciclo su tutti gli articoli rischierebbe di sovraccaricare Substack)

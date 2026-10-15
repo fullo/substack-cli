@@ -127,6 +127,13 @@ substack article draft post.md             # create the draft online
 substack article list                      # list your drafts</code></pre>
             <p>The file starts with front matter: <code>title</code> is required, <code>subtitle</code> is optional. You can also pipe the text from another program with <code>cat post.md | substack article draft -</code>.</p></li>
 
+          <li><h3>Find and download your articles</h3>
+<pre tabindex="0"><code>substack article list --status published                  # id, title, link
+substack article list --status published --limit 50 --page 2   # pages of 10, 25, 50 or 100
+substack article list --search "green coding"             # search published articles
+substack article export 123456789 --out post.md           # one article as Markdown</code></pre>
+            <p>Each command makes a single request and never walks through the pages by itself. <code>export</code> writes Markdown with front matter; embeds and widgets that have no Markdown form become a comment and a warning. There is deliberately no “download everything” command..</p></li>
+
           <li><h3>Fix a draft without opening the browser</h3>
 <pre tabindex="0"><code>substack article update 123456789 --title "A better title" --dry-run
 substack article update 123456789 --title "A better title"
@@ -187,7 +194,8 @@ kubectl apply -f deploy/k3s/configmap.yaml -f deploy/k3s/cronjob.yaml</code></pr
           <div class="c" role="row"><code role="cell">auth guide · set · check · login</code><span role="cell">Get, store and check the cookie (<code>login</code> opens a browser, with Playwright installed separately).</span></div>
           <div class="c" role="row"><code role="cell">config init · show</code><span role="cell">Create and show the configuration (<code>--lang en|it</code>).</span></div>
           <div class="c" role="row"><code role="cell">article draft &lt;file|-&gt;</code><span role="cell">Create a draft from Markdown. <code>--cover</code>, <code>--dry-run</code>.</span></div>
-          <div class="c" role="row"><code role="cell">article list</code><span role="cell">List the most recent drafts.</span></div>
+          <div class="c" role="row"><code role="cell">article list</code><span role="cell">List drafts, or published articles with <code>--status published</code> (id, title, link). <code>--limit 10|25|50|100</code>, <code>--page</code>, <code>--search</code>.</span></div>
+          <div class="c" role="row"><code role="cell">article export &lt;id&gt;</code><span role="cell">Download an article as Markdown with front matter. <code>--out</code>, <code>--force</code>.</span></div>
           <div class="c" role="row"><code role="cell">article update &lt;id&gt;</code><span role="cell">Edit an unpublished draft. <code>--title</code>, <code>--subtitle</code>, <code>--file</code>, <code>--cover</code>, <code>--yes</code>, <code>--dry-run</code>.</span></div>
           <div class="c" role="row"><code role="cell">article publish &lt;id&gt;</code><span role="cell">Publish a draft. <code>--yes</code>, <code>--send-email</code>, <code>--dry-run</code>.</span></div>
           <div class="c" role="row"><code role="cell">article schedule &lt;id&gt;</code><span role="cell">Schedule with Substack's own scheduler (<code>--at</code>) or cancel it (<code>--cancel</code>). <code>--email</code> picks the audience, <code>--yes</code>, <code>--dry-run</code>.</span></div>

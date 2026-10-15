@@ -22,6 +22,8 @@ function shape(v: unknown, depth = 0): unknown {
 const targets = [
   ['profile', 'https://substack.com/api/v1/user/profile/self'],
   ['drafts', `https://${publication}.substack.com/api/v1/post_management/drafts?offset=0&limit=5&order_by=draft_updated_at&order_direction=desc`],
+  ['published', `https://${publication}.substack.com/api/v1/post_management/published?offset=0&limit=5&order_by=post_date&order_direction=desc`],
+  ['search', `https://${publication}.substack.com/api/v1/archive?sort=new&search=a&offset=0&limit=5`],
 ] as const;
 
 for (const [label, url] of targets) {

@@ -1,4 +1,10 @@
+import { stat } from 'node:fs/promises';
+import { stringify } from 'yaml';
+import { z } from 'zod';
 import { parseArticle, parseSubtitle, parseTitle } from '../../markdown/frontmatter.ts';
+import { docToMarkdown } from '../../markdown/export.ts';
+import type { PMDoc } from '../../markdown/prosemirror.ts';
+import { atomicWriteFile } from '../../util/fs.ts';
 import { parseDraftId, parseEmailAudience } from '../../substack/client.ts';
 import type { DraftPatch } from '../../substack/client.ts';
 import { parseFutureInstant } from '../../util/clock.ts';
@@ -7,6 +13,7 @@ import { isImageUrl, parseImageUrl, readImageFile } from '../../util/image.ts';
 import type { ImageFile } from '../../util/image.ts';
 import type { SubstackClient } from '../../substack/client.ts';
 import { t } from '../../util/i18n.ts';
+import { isSafeSingleLine } from '../../util/text.ts';
 import { emit, flag, makeClient, readSource, str } from '../shared.ts';
 import type { Command } from '../shared.ts';
 import type { Ctx } from '../context.ts';
@@ -31,6 +38,45 @@ async function parseCover(value: string): Promise<CoverSource> {
 
 async function coverUrl(client: SubstackClient, cover: CoverSource): Promise<string> {
   return cover.kind === 'url' ? cover.url : (await client.uploadImage(cover.img)).url;
+}
+
+const DocSchema = z.object({ type: z.literal('doc'), content: z.array(z.any()) }).passthrough();
+
+const PAGE_SIZES = [10, 25, 50, 100] as const;
+
+function parsePageSize(value: string | undefined): number {
+  if (value === undefined) return 25;
+  const n = Number(value);
+  if (!(PAGE_SIZES as readonly number[]).includes(n)) {
+    throw new UsageError(t(`Invalid --limit: "${value}" (allowed: ${PAGE_SIZES.join(', ')})`, `--limit non valido: "${value}" (valori ammessi: ${PAGE_SIZES.join(', ')})`));
+  }
+  return n;
+}
+
+function parsePageNumber(value: string | undefined): number {
+  if (value === undefined) return 1;
+  if (!/^[1-9][0-9]{0,5}$/.test(value)) {
+    throw new UsageError(t(`Invalid --page: "${value}" (expected a positive integer)`, `--page non valido: "${value}" (atteso un intero positivo)`));
+  }
+  return Number(value);
+}
+
+function parseListStatus(value: string | undefined, searching: boolean): 'draft' | 'published' {
+  if (value !== undefined && value !== 'draft' && value !== 'published') {
+    throw new UsageError(t(`Invalid --status: "${value}" (allowed: draft, published)`, `--status non valido: "${value}" (valori ammessi: draft, published)`));
+  }
+  if (searching && value === 'draft') {
+    throw new UsageError(t('--search only looks through published articles: remove --status draft', '--search cerca solo tra gli articoli pubblicati: togli --status draft'));
+  }
+  return value === 'published' || searching ? 'published' : 'draft';
+}
+
+function parseSearchQuery(value: string): string {
+  const q = value.trim();
+  if (q.length === 0 || q.length > 200 || !isSafeSingleLine(q)) {
+    throw new UsageError(t('Invalid --search: expected 1-200 characters on one line', '--search non valido: attesi 1-200 caratteri su una riga'));
+  }
+  return q;
 }
 
 export const articleCommands: Command[] = [
@@ -83,12 +129,79 @@ export const articleCommands: Command[] = [
   },
   {
     path: 'article list',
-    summary: { en: 'List the most recent drafts', it: 'Elenca le bozze più recenti' },
-    options: {},
+    summary: {
+      en: 'List drafts (default) or published articles (--status published), paged with --limit 10|25|50|100 and --page; --search <text> searches published articles',
+      it: 'Elenca le bozze (default) o gli articoli pubblicati (--status published), paginati con --limit 10|25|50|100 e --page; --search <testo> cerca tra i pubblicati',
+    },
+    options: { status: { type: 'string' }, limit: { type: 'string' }, page: { type: 'string' }, search: { type: 'string' } },
     async run(ctx, { values }) {
-      const drafts = await (await makeClient(ctx)).listDrafts();
-      const rows = drafts.map((d) => ({ id: d.id, title: d.draft_title ?? t('(untitled)', '(senza titolo)') }));
-      emit(ctx, values, rows, rows.length ? rows.map((r) => `${r.id}\t${r.title}`).join('\n') : t('No drafts.', 'Nessuna bozza.'));
+      const search = str(values, 'search');
+      const status = parseListStatus(str(values, 'status'), search !== undefined);
+      const limit = parsePageSize(str(values, 'limit'));
+      const page = parsePageNumber(str(values, 'page'));
+      const query = search === undefined ? undefined : parseSearchQuery(search);
+      const offset = (page - 1) * limit;
+      const client = await makeClient(ctx);
+      // Una sola richiesta per chiamata: scorrere le pagine è una scelta esplicita di chi usa il comando.
+      const items = query !== undefined ? await client.searchPosts(query, { limit, offset })
+        : status === 'published' ? await client.listPublished({ limit, offset })
+          : await client.listDrafts(limit, offset);
+      const published = query !== undefined || status === 'published';
+      const rows = items.slice(0, limit).map((d) => {
+        const title = ('title' in d ? d.title : undefined) || d.draft_title || t('(untitled)', '(senza titolo)');
+        return {
+          id: d.id, title,
+          link: client.postLink({ id: d.id, slug: d.slug, canonical_url: d.canonical_url, is_published: published ? true : false }),
+          ...(published ? { date: d.post_date ?? null } : {}),
+        };
+      });
+      const empty = query !== undefined ? t('No articles found.', 'Nessun articolo trovato.')
+        : published ? t('No published articles.', 'Nessun articolo pubblicato.') : t('No drafts.', 'Nessuna bozza.');
+      emit(ctx, values, rows, rows.length ? rows.map((r) => `${r.id}\t${r.title}\t${r.link}`).join('\n') : empty);
+      if (!flag(values, 'json') && rows.length > 0) {
+        const more = items.length >= limit ? t(` — next: --page ${page + 1}`, ` — successiva: --page ${page + 1}`) : '';
+        ctx.err(t(`Page ${page}, ${rows.length} items${more}`, `Pagina ${page}, ${rows.length} elementi${more}`));
+      }
+      return 0;
+    },
+  },
+  {
+    path: 'article export',
+    summary: {
+      en: 'Download one article (draft or published) as Markdown with front matter: to stdout, or to --out <file> (--force overwrites)',
+      it: 'Scarica un articolo (bozza o pubblicato) come Markdown con front-matter: su stdout, oppure in --out <file> (--force sovrascrive)',
+    },
+    options: { out: { type: 'string' }, force: { type: 'boolean' } },
+    async run(ctx, { values, positionals }) {
+      const id = parseDraftId(positionals[0]);
+      const out = str(values, 'out');
+      const client = await makeClient(ctx);
+      // Una sola richiesta GET per articolo; non esiste (di proposito) un export di massa.
+      const post = await client.getDraft(id);
+      if (!post.draft_body) {
+        throw new ApiShapeError(t(`Article ${id} has no body to export`, `L'articolo ${id} non ha un corpo da esportare`));
+      }
+      let doc;
+      try { doc = DocSchema.parse(JSON.parse(post.draft_body)); } catch {
+        throw new ApiShapeError(t(`Unexpected body format for article ${id} (Substack's API may have changed)`,
+          `Formato del corpo inatteso per l'articolo ${id} (l'API di Substack potrebbe essere cambiata)`));
+      }
+      const { markdown, unsupported } = docToMarkdown(doc as PMDoc);
+      const front = stringify({ title: post.draft_title ?? '', ...(post.draft_subtitle ? { subtitle: post.draft_subtitle } : {}) }, { lineWidth: 0 });
+      const text = `---\n${front}---\n\n${markdown}\n`;
+      if (unsupported.length > 0) {
+        ctx.err(t(`Warning: elements without a Markdown form were replaced by a comment: ${unsupported.join(', ')}`,
+          `Attenzione: elementi senza forma Markdown sostituiti da un commento: ${unsupported.join(', ')}`));
+      }
+      if (out === undefined) {
+        emit(ctx, values, { id, title: post.draft_title ?? '', markdown: text, unsupported }, text.replace(/\n$/, ''));
+        return 0;
+      }
+      if (!flag(values, 'force') && await stat(out).then(() => true, () => false)) {
+        throw new UsageError(t(`File already exists: ${out} (use --force to overwrite)`, `Il file esiste già: ${out} (usa --force per sovrascrivere)`));
+      }
+      await atomicWriteFile(out, text, 0o644);
+      emit(ctx, values, { id, file: out, unsupported }, t(`Article ${id} saved to ${out}`, `Articolo ${id} salvato in ${out}`));
       return 0;
     },
   },

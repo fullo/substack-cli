@@ -126,6 +126,13 @@ substack article draft post.md             # crea la bozza online
 substack article list                      # elenca le bozze</code></pre>
             <p>Il file inizia con un front-matter: <code>title</code> è obbligatorio, <code>subtitle</code> facoltativo. Puoi anche passare il testo da un altro programma con <code>cat post.md | substack article draft -</code>.</p></li>
 
+          <li><h3>Trova e scarica i tuoi articoli</h3>
+<pre tabindex="0"><code>substack article list --status published                  # id, titolo, link
+substack article list --status published --limit 50 --page 2   # pagine da 10, 25, 50 o 100
+substack article list --search "green coding"             # cerca tra gli articoli pubblicati
+substack article export 123456789 --out post.md           # un articolo come Markdown</code></pre>
+            <p>Ogni comando fa una sola richiesta e non scorre le pagine da solo. <code>export</code> scrive Markdown con front-matter; embed e widget senza forma Markdown diventano un commento e un avviso. Un «scarica tutto» non c'è, di proposito..</p></li>
+
           <li><h3>Correggi una bozza senza aprire il browser</h3>
 <pre tabindex="0"><code>substack article update 123456789 --title "Un titolo migliore" --dry-run
 substack article update 123456789 --title "Un titolo migliore"
@@ -186,7 +193,8 @@ kubectl apply -f deploy/k3s/configmap.yaml -f deploy/k3s/cronjob.yaml</code></pr
           <div class="c" role="row"><code role="cell">auth guide · set · check · login</code><span role="cell">Ottieni, salva e verifica il cookie (<code>login</code> apre un browser, con Playwright installato a parte).</span></div>
           <div class="c" role="row"><code role="cell">config init · show</code><span role="cell">Crea e mostra la configurazione (<code>--lang en|it</code>).</span></div>
           <div class="c" role="row"><code role="cell">article draft &lt;file|-&gt;</code><span role="cell">Crea una bozza da Markdown. <code>--cover</code>, <code>--dry-run</code>.</span></div>
-          <div class="c" role="row"><code role="cell">article list</code><span role="cell">Elenca le bozze più recenti.</span></div>
+          <div class="c" role="row"><code role="cell">article list</code><span role="cell">Elenca le bozze, o gli articoli pubblicati con <code>--status published</code> (id, titolo, link). <code>--limit 10|25|50|100</code>, <code>--page</code>, <code>--search</code>.</span></div>
+          <div class="c" role="row"><code role="cell">article export &lt;id&gt;</code><span role="cell">Scarica un articolo come Markdown con front-matter. <code>--out</code>, <code>--force</code>.</span></div>
           <div class="c" role="row"><code role="cell">article update &lt;id&gt;</code><span role="cell">Modifica una bozza non pubblicata. <code>--title</code>, <code>--subtitle</code>, <code>--file</code>, <code>--cover</code>, <code>--yes</code>, <code>--dry-run</code>.</span></div>
           <div class="c" role="row"><code role="cell">article publish &lt;id&gt;</code><span role="cell">Pubblica una bozza. <code>--yes</code>, <code>--send-email</code>, <code>--dry-run</code>.</span></div>
           <div class="c" role="row"><code role="cell">article schedule &lt;id&gt;</code><span role="cell">Programma con lo scheduler di Substack (<code>--at</code>) o annulla (<code>--cancel</code>). <code>--email</code> sceglie i destinatari, <code>--yes</code>, <code>--dry-run</code>.</span></div>

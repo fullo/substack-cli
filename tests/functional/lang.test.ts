@@ -53,10 +53,10 @@ test('lingua: help e guida seguono la lingua attiva', async () => {
   try {
     const en = (await sb.run(['help'])).stdout;
     assert.match(en, /^Usage: substack <group> <command> \[options\]/);
-    assert.match(en, /List the most recent drafts/);
+    assert.match(en, /List drafts \(default\)/);
     const it = (await sb.run(['help'], { env: { SUBSTACK_LANG: 'it' } })).stdout;
     assert.match(it, /^Uso: substack <gruppo> <comando> \[opzioni\]/);
-    assert.match(it, /Elenca le bozze più recenti/);
+    assert.match(it, /Elenca le bozze \(default\)/);
     assert.match((await sb.run(['auth', 'guide'])).stdout, /^GUIDE: getting your Substack session cookie/);
     assert.match((await sb.run(['auth', 'guide'], { env: { SUBSTACK_LANG: 'it' } })).stdout, /^GUIDA: ottenere il cookie/);
   } finally { await done(); }

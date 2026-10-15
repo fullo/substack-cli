@@ -9,15 +9,17 @@
 //                   PUT  /api/v1/drafts/{id}   (aggiornamento parziale confermato per draft_title;
 //                                               cover_image NON CONFERMATO)
 //                   POST /api/v1/image         (caricamento immagine, NON CONFERMATO: corpo { image: data URI })
+//   publicationUrl: GET  /api/v1/post_management/published?offset&limit&order_by=post_date&order_direction=desc  (NON CONFERMATO)
+//                   GET  /api/v1/archive?sort=new&search=&offset&limit  (ricerca, NON CONFERMATO)
 import type { z } from 'zod';
 import type { PMDoc } from '../markdown/prosemirror.ts';
 import { ApiShapeError, AuthError, NetworkError, RateLimitError, UsageError } from '../util/errors.ts';
 import { readBodyLimited } from '../util/http.ts';
 import { t } from '../util/i18n.ts';
-import { AnySchema, DraftCreatedSchema, DraftListSchema, DraftSchema, ImageUploadedSchema, NoteCreatedSchema, ProfileSchema } from './schemas.ts';
+import { AnySchema, DraftCreatedSchema, DraftListSchema, DraftSchema, ImageUploadedSchema, NoteCreatedSchema, PostArraySchema, PostListSchema, ProfileSchema } from './schemas.ts';
 import { parseImageUrl, toDataUri } from '../util/image.ts';
 import type { ImageFile } from '../util/image.ts';
-import type { Draft, Profile } from './schemas.ts';
+import type { Draft, Post, Profile } from './schemas.ts';
 
 const USER_AGENT = 'substack-cli/0.1 (+https://github.com/local/substack-cli)';
 
@@ -230,10 +232,38 @@ export class SubstackClient {
     return { url };
   }
 
-  async listDrafts(limit = 25): Promise<Draft[]> {
-    const q = `offset=0&limit=${limit}&order_by=draft_updated_at&order_direction=desc`;
+  async listDrafts(limit = 25, offset = 0): Promise<Draft[]> {
+    const q = `offset=${offset}&limit=${limit}&order_by=draft_updated_at&order_direction=desc`;
     const r = await this.request(this.publicationUrl, `/api/v1/post_management/drafts?${q}`, { method: 'GET' }, DraftListSchema, true);
     return r.posts;
+  }
+
+  /**
+   * Una pagina di articoli pubblicati, dal più recente. Una sola richiesta GET per pagina: nessun ciclo
+   * automatico sulle pagine. Endpoint NON CONFERMATO (tests/fixtures/README.md, sezione 11).
+   */
+  async listPublished(opts: { limit: number; offset: number }): Promise<Post[]> {
+    const q = `offset=${opts.offset}&limit=${opts.limit}&order_by=post_date&order_direction=desc`;
+    const r = await this.request(this.publicationUrl, `/api/v1/post_management/published?${q}`, { method: 'GET' }, PostListSchema, true);
+    return r.posts;
+  }
+
+  /** Cerca tra gli articoli pubblicati. Una sola richiesta GET. Endpoint NON CONFERMATO (sezione 11). */
+  async searchPosts(query: string, opts: { limit: number; offset: number }): Promise<Post[]> {
+    const q = `sort=new&search=${encodeURIComponent(query)}&offset=${opts.offset}&limit=${opts.limit}`;
+    return this.request(this.publicationUrl, `/api/v1/archive?${q}`, { method: 'GET' }, PostArraySchema, true);
+  }
+
+  /** Link pubblico di un articolo pubblicato, oppure l'URL di modifica se è una bozza. */
+  postLink(p: { id: number; slug?: string | null; canonical_url?: string | null; is_published?: boolean | null }): string {
+    if (p.canonical_url) {
+      try {
+        const u = new URL(p.canonical_url);
+        if (u.protocol === 'https:' || u.protocol === 'http:') return u.href;
+      } catch { /* si ricade sullo slug */ }
+    }
+    if (p.is_published !== false && p.slug && /^[a-z0-9][a-z0-9-]*$/i.test(p.slug)) return `${this.publicationUrl}/p/${p.slug}`;
+    return `${this.publicationUrl}/publish/post/${p.id}`;
   }
 
   async publishDraft(id: number, opts: { sendEmail: boolean }): Promise<void> {
