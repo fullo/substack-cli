@@ -133,13 +133,24 @@ substack article update 123456789 --title "A better title"
 # Type "update" to confirm:</code></pre>
             <p>Only the fields that change are sent, and published posts are left alone. With <code>--file</code> the Markdown file replaces body, title and subtitle; try that on a test draft first, because it overwrites edits made in the web editor.</p></li>
 
+          <li><h3>Add images and a cover</h3>
+<pre tabindex="0"><code>substack image upload cover.png                              # uploads and prints the URL
+substack article draft post.md --cover cover.png             # upload, create the draft, set the cover
+substack article update 123456789 --cover cover.png --yes    # set the cover on an existing draft
+substack article update 123456789 --cover https://substack-post-media.s3.amazonaws.com/... --yes   # or an already uploaded URL</code></pre>
+            <p>Accepted formats: PNG, JPEG, GIF and WebP, up to 10 MB. With <code>article draft --cover</code> the image is uploaded before the draft is created; if setting the cover then fails, the message gives the draft id and the command to retry just the cover. The upload and cover endpoints are <strong>not confirmed yet</strong>: after updating, the CLI rereads the draft and, if the cover isn't set, exits with code 3.</p></li>
+
           <li><h3>Publish, with a confirmation</h3>
 <pre tabindex="0"><code>substack article publish 123456789
 # Type "publish" to confirm:
 
 substack article publish 123456789 --yes                 # from a script
 substack article publish 123456789 --yes --send-email    # also email your subscribers</code></pre>
-            <p>In a terminal you're asked to type a confirmation word; from a script you need <code>--yes</code>, otherwise the command stops straight away. The email to subscribers only goes out with <code>--send-email</code>.</p></li>
+            <p>In a terminal you're asked to type a confirmation word; from a script you need <code>--yes</code>, otherwise the command stops straight away. The email to subscribers only goes out with <code>--send-email</code>.</p>
+<pre tabindex="0"><code>substack article schedule 123456789 --at 2026-10-09T09:00:00+02:00
+substack article schedule 123456789 --at 2026-10-09T09:00:00+02:00 --email only_free
+substack article schedule 123456789 --cancel</code></pre>
+            <p>Scheduling is different: Substack has no “no email” option, so with <code>article schedule</code> the email always goes out. Choose who gets it with <code>--email</code> (<code>everyone</code> by default, <code>only_free</code>, <code>only_paid</code> or <code>founding</code>); the audience appears in the summary before you confirm.</p></li>
 
           <li><h3>Notes: a local queue, by hand or on a schedule</h3>
 <pre tabindex="0"><code>substack note add "A short note with a [link](https://example.com)"
@@ -175,11 +186,12 @@ kubectl apply -f deploy/k3s/configmap.yaml -f deploy/k3s/cronjob.yaml</code></pr
         <div class="cmds" role="table" aria-label="Command reference">
           <div class="c" role="row"><code role="cell">auth guide · set · check · login</code><span role="cell">Get, store and check the cookie (<code>login</code> opens a browser, with Playwright installed separately).</span></div>
           <div class="c" role="row"><code role="cell">config init · show</code><span role="cell">Create and show the configuration (<code>--lang en|it</code>).</span></div>
-          <div class="c" role="row"><code role="cell">article draft &lt;file|-&gt;</code><span role="cell">Create a draft from Markdown. <code>--dry-run</code> to try it.</span></div>
+          <div class="c" role="row"><code role="cell">article draft &lt;file|-&gt;</code><span role="cell">Create a draft from Markdown. <code>--cover</code>, <code>--dry-run</code>.</span></div>
           <div class="c" role="row"><code role="cell">article list</code><span role="cell">List the most recent drafts.</span></div>
-          <div class="c" role="row"><code role="cell">article update &lt;id&gt;</code><span role="cell">Edit an unpublished draft. <code>--title</code>, <code>--subtitle</code>, <code>--file</code>, <code>--yes</code>, <code>--dry-run</code>.</span></div>
+          <div class="c" role="row"><code role="cell">article update &lt;id&gt;</code><span role="cell">Edit an unpublished draft. <code>--title</code>, <code>--subtitle</code>, <code>--file</code>, <code>--cover</code>, <code>--yes</code>, <code>--dry-run</code>.</span></div>
           <div class="c" role="row"><code role="cell">article publish &lt;id&gt;</code><span role="cell">Publish a draft. <code>--yes</code>, <code>--send-email</code>, <code>--dry-run</code>.</span></div>
-          <div class="c" role="row"><code role="cell">article schedule &lt;id&gt;</code><span role="cell">Schedule with Substack's own scheduler (<code>--at</code>) or cancel it (<code>--cancel</code>).</span></div>
+          <div class="c" role="row"><code role="cell">article schedule &lt;id&gt;</code><span role="cell">Schedule with Substack's own scheduler (<code>--at</code>) or cancel it (<code>--cancel</code>). <code>--email</code> picks the audience, <code>--yes</code>, <code>--dry-run</code>.</span></div>
+          <div class="c" role="row"><code role="cell">image upload &lt;file&gt;</code><span role="cell">Upload an image (PNG, JPEG, GIF, WebP, max 10 MB) and print its URL.</span></div>
           <div class="c" role="row"><code role="cell">note add &lt;text|-&gt;</code><span role="cell">Add a note to the local queue.</span></div>
           <div class="c" role="row"><code role="cell">note list · schedule · unschedule</code><span role="cell">List (<code>--status</code>), schedule (<code>--at</code>) or move back to draft.</span></div>
           <div class="c" role="row"><code role="cell">note publish · resolve</code><span role="cell">Publish now; <code>resolve --published|--retry</code> settles a note left in doubt.</span></div>
